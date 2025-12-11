@@ -1,0 +1,410 @@
+import { useState, useEffect, useCallback } from 'react';
+import CarCard from '../components/CarCard';
+import { 
+  getCurrentLocation, 
+  calculateDistance, 
+  indianCities, 
+  getCityByName
+} from '../utils/locationUtils';
+import './CarListing.css';
+
+const CarListing = () => {
+  const [cars, setCars] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all'); // all, rent, exchange
+  const [searchTerm, setSearchTerm] = useState('');
+  const [userLocation, setUserLocation] = useState(null);
+  const [selectedCity, setSelectedCity] = useState('');
+  const [maxDistance, setMaxDistance] = useState(50); // default 50km
+  const [sortBy, setSortBy] = useState('distance'); // distance, price, rating
+  const [locationError, setLocationError] = useState('');
+
+  const detectUserLocation = useCallback(async () => {
+    try {
+      const location = await getCurrentLocation();
+      setUserLocation(location);
+      setLocationError('');
+    } catch (error) {
+      console.error('Error getting location:', error);
+      setLocationError('Unable to get your location. Please select a city manually.');
+    }
+  }, []);
+
+  const fetchCars = useCallback(async () => {
+    try {
+      // TODO: Replace with actual API call
+      // Enhanced dummy data with coordinates
+      const dummyCars = [
+        {
+          id: 1,
+          brand: 'Toyota',
+          model: 'Camry',
+          year: 2022,
+          pricePerDay: 50,
+          location: 'Mumbai',
+          coordinates: { lat: 19.0760, lon: 72.8777 },
+          area: 'Andheri West',
+          image: 'https://via.placeholder.com/300x200?text=Toyota+Camry',
+          availableFor: 'rent',
+          owner: 'John Doe',
+          rating: 4.5
+        },
+        {
+          id: 2,
+          brand: 'Honda',
+          model: 'City',
+          year: 2023,
+          pricePerDay: 45,
+          location: 'Mumbai',
+          coordinates: { lat: 19.1136, lon: 72.8697 },
+          area: 'Bandra',
+          image: 'https://via.placeholder.com/300x200?text=Honda+City',
+          availableFor: 'rent',
+          owner: 'Jane Smith',
+          rating: 4.8
+        },
+        {
+          id: 3,
+          brand: 'BMW',
+          model: '3 Series',
+          year: 2021,
+          location: 'Bangalore',
+          coordinates: { lat: 12.9716, lon: 77.5946 },
+          area: 'Koramangala',
+          image: 'https://via.placeholder.com/300x200?text=BMW+3+Series',
+          availableFor: 'exchange',
+          owner: 'Mike Johnson',
+          rating: 4.9
+        },
+        {
+          id: 4,
+          brand: 'Hyundai',
+          model: 'Creta',
+          year: 2023,
+          pricePerDay: 55,
+          location: 'Pune',
+          coordinates: { lat: 18.5204, lon: 73.8567 },
+          area: 'Kharadi',
+          image: 'https://via.placeholder.com/300x200?text=Hyundai+Creta',
+          availableFor: 'both',
+          owner: 'Sarah Williams',
+          rating: 4.6
+        },
+        {
+          id: 5,
+          brand: 'Maruti',
+          model: 'Swift',
+          year: 2023,
+          pricePerDay: 35,
+          location: 'Mumbai',
+          coordinates: { lat: 19.0330, lon: 73.0297 },
+          area: 'Navi Mumbai',
+          image: 'https://via.placeholder.com/300x200?text=Maruti+Swift',
+          availableFor: 'rent',
+          owner: 'Rahul Sharma',
+          rating: 4.4
+        },
+        {
+          id: 6,
+          brand: 'Tata',
+          model: 'Nexon',
+          year: 2022,
+          pricePerDay: 48,
+          location: 'Delhi',
+          coordinates: { lat: 28.7041, lon: 77.1025 },
+          area: 'Connaught Place',
+          image: 'https://via.placeholder.com/300x200?text=Tata+Nexon',
+          availableFor: 'rent',
+          owner: 'Amit Kumar',
+          rating: 4.7
+        },
+        {
+          id: 7,
+          brand: 'Mahindra',
+          model: 'Thar',
+          year: 2023,
+          pricePerDay: 80,
+          location: 'Bangalore',
+          coordinates: { lat: 12.9352, lon: 77.6245 },
+          area: 'Whitefield',
+          image: 'https://via.placeholder.com/300x200?text=Mahindra+Thar',
+          availableFor: 'both',
+          owner: 'Priya Singh',
+          rating: 4.9
+        },
+        {
+          id: 8,
+          brand: 'Volkswagen',
+          model: 'Polo',
+          year: 2021,
+          pricePerDay: 42,
+          location: 'Pune',
+          coordinates: { lat: 18.5679, lon: 73.9143 },
+          area: 'Hadapsar',
+          image: 'https://via.placeholder.com/300x200?text=VW+Polo',
+          availableFor: 'rent',
+          owner: 'Sneha Patel',
+          rating: 4.3
+        },
+        {
+          id: 9,
+          brand: 'Kia',
+          model: 'Seltos',
+          year: 2023,
+          pricePerDay: 60,
+          location: 'Mumbai',
+          coordinates: { lat: 19.2183, lon: 72.9781 },
+          area: 'Thane',
+          image: 'https://via.placeholder.com/300x200?text=Kia+Seltos',
+          availableFor: 'exchange',
+          owner: 'Vikram Mehta',
+          rating: 4.8
+        },
+        {
+          id: 10,
+          brand: 'MG',
+          model: 'Hector',
+          year: 2022,
+          pricePerDay: 65,
+          location: 'Hyderabad',
+          coordinates: { lat: 17.3850, lon: 78.4867 },
+          area: 'Hitech City',
+          image: 'https://via.placeholder.com/300x200?text=MG+Hector',
+          availableFor: 'both',
+          owner: 'Anjali Reddy',
+          rating: 4.6
+        }
+      ];
+
+      // Add distance to each car if user location is available
+      const carsWithDistance = dummyCars.map(car => {
+        if (userLocation && car.coordinates) {
+          const distance = calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            car.coordinates.lat,
+            car.coordinates.lon
+          );
+          return { ...car, distance };
+        }
+        return car;
+      });
+
+      setCars(carsWithDistance);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching cars:', error);
+      setLoading(false);
+    }
+  }, [userLocation]);
+
+  useEffect(() => {
+    detectUserLocation();
+  }, [detectUserLocation]);
+
+  useEffect(() => {
+    fetchCars();
+  }, [fetchCars]);
+
+  const handleCitySelect = (cityName) => {
+    setSelectedCity(cityName);
+    const city = getCityByName(cityName);
+    if (city) {
+      setUserLocation({
+        latitude: city.lat,
+        longitude: city.lon
+      });
+    }
+  };
+
+  const handleUseMyLocation = () => {
+    detectUserLocation();
+    setSelectedCity('');
+  };
+
+  const filteredCars = cars.filter(car => {
+    // Filter by availability type
+    const matchesFilter = filter === 'all' || 
+                         car.availableFor === filter || 
+                         car.availableFor === 'both';
+    
+    // Filter by search term
+    const matchesSearch = car.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         car.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (car.area && car.area.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    // Filter by distance (if user location is available)
+    let matchesDistance = true;
+    if (userLocation && car.distance !== undefined) {
+      matchesDistance = car.distance <= maxDistance;
+    }
+
+    // Filter by selected city
+    let matchesCity = true;
+    if (selectedCity) {
+      matchesCity = car.location.toLowerCase() === selectedCity.toLowerCase();
+    }
+
+    return matchesFilter && matchesSearch && matchesDistance && matchesCity;
+  });
+
+  // Sort cars
+  const sortedCars = [...filteredCars].sort((a, b) => {
+    if (sortBy === 'distance' && a.distance !== undefined && b.distance !== undefined) {
+      return a.distance - b.distance;
+    } else if (sortBy === 'price') {
+      return (a.pricePerDay || 0) - (b.pricePerDay || 0);
+    } else if (sortBy === 'rating') {
+      return b.rating - a.rating;
+    }
+    return 0;
+  });
+
+  if (loading) {
+    return <div className="loading">Loading cars...</div>;
+  }
+
+  return (
+    <div className="car-listing">
+      <div className="listing-header">
+        <h1>Available Cars Near You</h1>
+        <p>Find your perfect ride or exchange cars with enthusiasts nearby</p>
+      </div>
+
+      {/* Location Section */}
+      <div className="location-section">
+        <div className="location-header">
+          <h3>📍 Your Location</h3>
+          <button className="btn-location" onClick={handleUseMyLocation}>
+            🎯 Use My Location
+          </button>
+        </div>
+
+        {locationError && (
+          <div className="location-error">{locationError}</div>
+        )}
+
+        {userLocation && !selectedCity && (
+          <div className="location-info">
+            <span className="location-badge">Using your current location</span>
+          </div>
+        )}
+
+        <div className="city-selector">
+          <label htmlFor="citySelect">Or select a city:</label>
+          <select
+            id="citySelect"
+            value={selectedCity}
+            onChange={(e) => handleCitySelect(e.target.value)}
+            className="city-dropdown"
+          >
+            <option value="">All Cities</option>
+            {indianCities.map(city => (
+              <option key={city.name} value={city.name}>
+                {city.name}, {city.state}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {userLocation && (
+          <div className="distance-filter">
+            <label htmlFor="distanceRange">
+              Show cars within: <strong>{maxDistance}km</strong>
+            </label>
+            <input
+              type="range"
+              id="distanceRange"
+              min="5"
+              max="200"
+              step="5"
+              value={maxDistance}
+              onChange={(e) => setMaxDistance(Number(e.target.value))}
+              className="distance-slider"
+            />
+            <div className="distance-labels">
+              <span>5km</span>
+              <span>200km</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="listing-controls">
+        <div className="search-bar">
+          <input
+            type="text"
+            placeholder="Search by brand, model, area..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="control-row">
+          <div className="filter-buttons">
+            <button
+              className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+              onClick={() => setFilter('all')}
+            >
+              All Cars
+            </button>
+            <button
+              className={`filter-btn ${filter === 'rent' ? 'active' : ''}`}
+              onClick={() => setFilter('rent')}
+            >
+              For Rent
+            </button>
+            <button
+              className={`filter-btn ${filter === 'exchange' ? 'active' : ''}`}
+              onClick={() => setFilter('exchange')}
+            >
+              For Exchange
+            </button>
+          </div>
+
+          <div className="sort-section">
+            <label htmlFor="sortBy">Sort by:</label>
+            <select
+              id="sortBy"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="sort-dropdown"
+            >
+              {userLocation && <option value="distance">Nearest First</option>}
+              <option value="price">Price: Low to High</option>
+              <option value="rating">Highest Rated</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {sortedCars.length > 0 && (
+        <div className="results-info">
+          Found <strong>{sortedCars.length}</strong> cars
+          {selectedCity && ` in ${selectedCity}`}
+          {userLocation && !selectedCity && ` within ${maxDistance}km`}
+        </div>
+      )}
+
+      <div className="cars-grid">
+        {sortedCars.length > 0 ? (
+          sortedCars.map(car => (
+            <CarCard key={car.id} car={car} userLocation={userLocation} />
+          ))
+        ) : (
+          <div className="no-results">
+            <p>No cars found matching your criteria</p>
+            {userLocation && (
+              <button className="btn-secondary" onClick={() => setMaxDistance(maxDistance + 50)}>
+                Expand search area to {maxDistance + 50}km
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default CarListing;
