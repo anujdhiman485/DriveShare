@@ -27,15 +27,41 @@ export const getCurrentLocation = () => {
       return;
     }
 
+    console.log('📍 Requesting current location from browser...');
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        resolve({
+        const location = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-        });
+        };
+        console.log('✅ Location detected:', location);
+        resolve(location);
       },
       (error) => {
-        reject(error);
+        console.error('❌ Location error:', error);
+        let errorMessage = 'Unable to get your location';
+        
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = 'Location permission denied. Please allow location access in your browser settings.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Location information is unavailable.';
+            break;
+          case error.TIMEOUT:
+            errorMessage = 'Location request timed out. Please try again.';
+            break;
+          default:
+            errorMessage = 'An unknown error occurred while getting location.';
+        }
+        
+        reject(new Error(errorMessage));
+      },
+      {
+        enableHighAccuracy: true, // Request GPS for more accurate location
+        timeout: 10000, // 10 second timeout
+        maximumAge: 0 // Don't use cached position
       }
     );
   });

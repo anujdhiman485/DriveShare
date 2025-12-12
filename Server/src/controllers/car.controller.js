@@ -102,17 +102,18 @@ const getAllCars = asyncHandler(async (req, res) => {
     search,
     sortBy,
     page = 1,
-    limit = 20,
+    limit = 100, // Increased default limit
   } = req.query;
 
   let query = { isAvailable: true };
+  let useGeoQuery = false;
 
   // City-based search (exact match) - prioritize over coordinate-based search
-  if (city) {
+  if (city && city !== '' && city !== 'all') {
     query.location = { $regex: new RegExp(city, 'i') }; // Case-insensitive match
     console.log(`🏙️ Filtering by city: ${city}`);
   }
-  // Coordinate-based search (radius) - only if no city specified
+  // Coordinate-based search (radius) - only if no city specified and coordinates provided
   else if (lat && lon && maxDistance) {
     const latitude = parseFloat(lat);
     const longitude = parseFloat(lon);
@@ -127,7 +128,11 @@ const getAllCars = asyncHandler(async (req, res) => {
         $maxDistance: distance,
       },
     };
+    useGeoQuery = true;
     console.log(`📍 Filtering by coordinates within ${maxDistance}km`);
+  } else {
+    // No location filter - show all cars
+    console.log(`🌍 Showing all cars (no location filter)`);
   }
 
   // Filter by availability type
@@ -188,6 +193,9 @@ const getAllCars = asyncHandler(async (req, res) => {
 
   const skip = (page - 1) * limit;
 
+  console.log('📋 Query:', JSON.stringify(query, null, 2));
+  console.log('📊 Pagination: page', page, 'limit', limit, 'skip', skip);
+
   const cars = await Car.find(query)
     .populate("owner", "fullName email phone rating avatar")
     .sort(sortOptions)
@@ -195,6 +203,8 @@ const getAllCars = asyncHandler(async (req, res) => {
     .limit(parseInt(limit));
 
   const total = await Car.countDocuments(query);
+
+  console.log(`✅ Found ${cars.length} cars out of ${total} total matching query`);
 
   return res.status(200).json(
     new ApiResponse(

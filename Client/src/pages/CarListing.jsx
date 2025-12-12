@@ -15,19 +15,23 @@ const CarListing = () => {
   const [filter, setFilter] = useState('all'); // all, rent, exchange
   const [searchTerm, setSearchTerm] = useState('');
   const [userLocation, setUserLocation] = useState(null);
-  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedCity, setSelectedCity] = useState(''); // Default to empty string (All Cities)
   const [maxDistance, setMaxDistance] = useState(200); // default 200km
   const [sortBy, setSortBy] = useState('distance'); // distance, price, rating
   const [locationError, setLocationError] = useState('');
 
   const detectUserLocation = useCallback(async () => {
+    setLoading(true);
     try {
       const location = await getCurrentLocation();
       setUserLocation(location);
+      setSelectedCity(null); // Clear city selection when using live location
       setLocationError('');
     } catch (error) {
       console.error('Error getting location:', error);
-      setLocationError('Unable to get your location. Please select a city manually.');
+      setLocationError('Unable to get your location. Please try again or select a city manually.');
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -39,8 +43,13 @@ const CarListing = () => {
       // Build query parameters
       const params = {};
       
+      // If "All Cities" is selected (empty string), don't add any location filter
+      if (selectedCity === '') {
+        console.log('🌍 Fetching ALL cars (no location filter)');
+        // Don't add any location parameters
+      }
       // If city is manually selected, use city-based search (shows ALL cars in that city)
-      if (selectedCity) {
+      else if (selectedCity) {
         params.city = selectedCity;
         console.log('🏙️ Using city-based search:', selectedCity);
       }
@@ -51,12 +60,9 @@ const CarListing = () => {
         params.maxDistance = maxDistance;
         console.log('📍 Using live location within', maxDistance, 'km');
       }
-      // No location available - don't fetch cars
+      // No location available and no city selected - still fetch all cars
       else {
-        console.log('⚠️ No location available - waiting for user location or city selection');
-        setCars([]);
-        setLoading(false);
-        return;
+        console.log('🌍 No location specified - fetching all cars');
       }
       
       // Add filter
@@ -132,22 +138,15 @@ const CarListing = () => {
   }, [userLocation, selectedCity, maxDistance, filter, searchTerm, sortBy]);
 
   useEffect(() => {
-    detectUserLocation();
-  }, [detectUserLocation]);
-
-  useEffect(() => {
+    // Don't auto-detect location on mount
+    // User needs to click "Use My Location" button
+    // By default, fetch all cars
     fetchCars();
   }, [fetchCars]);
 
   const handleCitySelect = (cityName) => {
     setSelectedCity(cityName);
-    const city = getCityByName(cityName);
-    if (city) {
-      setUserLocation({
-        latitude: city.lat,
-        longitude: city.lon
-      });
-    }
+    setUserLocation(null); // Clear live location when selecting a city
   };
 
   const handleUseMyLocation = () => {
@@ -201,14 +200,14 @@ const CarListing = () => {
   return (
     <div className="car-listing">
       <div className="listing-header">
-        <h1>Available Cars Near You</h1>
-        <p>Find your perfect ride or exchange cars with enthusiasts nearby</p>
+        <h1>Browse Available Cars</h1>
+        <p>Find your perfect ride or exchange cars with enthusiasts</p>
       </div>
 
       {/* Location Section */}
       <div className="location-section">
         <div className="location-header">
-          <h3>📍 Your Location</h3>
+          <h3>📍 Search Location</h3>
           <button className="btn-location" onClick={handleUseMyLocation}>
             🎯 Use My Location
           </button>
@@ -218,21 +217,21 @@ const CarListing = () => {
           <div className="location-error">{locationError}</div>
         )}
 
-        {userLocation && !selectedCity && (
+        {userLocation && selectedCity === null && (
           <div className="location-info">
-            <span className="location-badge">Using your current location</span>
+            <span className="location-badge">✓ Using your current location ({maxDistance}km radius)</span>
           </div>
         )}
 
         <div className="city-selector">
-          <label htmlFor="citySelect">Or select a city:</label>
+          <label htmlFor="citySelect">Select a city:</label>
           <select
             id="citySelect"
-            value={selectedCity}
+            value={selectedCity === null ? '' : selectedCity}
             onChange={(e) => handleCitySelect(e.target.value)}
             className="city-dropdown"
           >
-            <option value="">All Cities</option>
+            <option value="">All Cities (Default)</option>
             {indianCities.map(city => (
               <option key={city.name} value={city.name}>
                 {city.name}, {city.state}
@@ -312,12 +311,14 @@ const CarListing = () => {
         </div>
       </div>
 
-      {(userLocation || selectedCity) && (
+      {(userLocation || selectedCity !== undefined) && (
         <div className="results-info">
           {sortedCars.length > 0 ? (
             <>
               Found <strong>{sortedCars.length}</strong> cars
-              {selectedCity ? (
+              {selectedCity === '' ? (
+                <> from all cities</>
+              ) : selectedCity ? (
                 <> in <strong>{selectedCity}</strong></>
               ) : (
                 <> within <strong>{maxDistance}km</strong> of your location</>
@@ -325,9 +326,11 @@ const CarListing = () => {
             </>
           ) : (
             <p>
-              {selectedCity 
-                ? `Searching for cars in ${selectedCity}...`
-                : `Searching for cars within ${maxDistance}km...`
+              {selectedCity === ''
+                ? 'Searching for cars in all cities...'
+                : selectedCity 
+                  ? `Searching for cars in ${selectedCity}...`
+                  : `Searching for cars within ${maxDistance}km...`
               }
             </p>
           )}
@@ -339,14 +342,6 @@ const CarListing = () => {
           <div className="loading-message">
             <p>Loading cars...</p>
           </div>
-        ) : !userLocation && !selectedCity ? (
-          <div className="no-results">
-            <h3>📍 Location Required</h3>
-            <p>Please allow location access or select a city to see available cars within 200km radius.</p>
-            <button className="btn-primary" onClick={detectUserLocation}>
-              Enable Location Access
-            </button>
-          </div>
         ) : sortedCars.length > 0 ? (
           sortedCars.map(car => (
             <CarCard key={car._id || car.id} car={car} userLocation={userLocation} />
@@ -354,12 +349,14 @@ const CarListing = () => {
         ) : (
           <div className="no-results">
             <p>
-              {selectedCity 
-                ? `No cars found in ${selectedCity}`
-                : `No cars found within ${maxDistance}km of your location`
+              {selectedCity === ''
+                ? 'No cars available at the moment'
+                : selectedCity 
+                  ? `No cars found in ${selectedCity}`
+                  : `No cars found within ${maxDistance}km of your location`
               }
             </p>
-            {!selectedCity && maxDistance < 200 && (
+            {!selectedCity && selectedCity !== '' && maxDistance < 200 && (
               <button className="btn-secondary" onClick={() => setMaxDistance(Math.min(maxDistance + 50, 200))}>
                 Expand search area to {Math.min(maxDistance + 50, 200)}km
               </button>
