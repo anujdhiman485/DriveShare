@@ -1,15 +1,53 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { carAPI, bookingAPI, exchangeAPI } from '../utils/apiService';
 import './Dashboard.css';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('overview');
   const [myCars, setMyCars] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
   const [receivedBookings, setReceivedBookings] = useState([]);
   const [exchangeRequests, setExchangeRequests] = useState([]);
+
+  const fetchDashboardData = useCallback(async () => {
+    console.log('🔄 Fetching dashboard data...');
+    try {
+      // Fetch user's cars
+      console.log('📡 Calling carAPI.getMyCars()...');
+      const carsResponse = await carAPI.getMyCars();
+      console.log('🚗 Cars Response:', carsResponse);
+      if (carsResponse.success) {
+        console.log('✅ Cars data:', carsResponse.data);
+        setMyCars(carsResponse.data || []);
+      } else {
+        console.log('❌ Cars fetch failed:', carsResponse);
+      }
+
+      // Fetch user's bookings
+      const myBookingsResponse = await bookingAPI.getMyBookings();
+      if (myBookingsResponse.success) {
+        setMyBookings(myBookingsResponse.data || []);
+      }
+
+      // Fetch received booking requests
+      const receivedResponse = await bookingAPI.getReceivedBookings();
+      if (receivedResponse.success) {
+        setReceivedBookings(receivedResponse.data || []);
+      }
+
+      // Fetch exchange requests
+      const exchangeResponse = await exchangeAPI.getReceivedExchangeRequests();
+      if (exchangeResponse.success) {
+        setExchangeRequests(exchangeResponse.data || []);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching dashboard data:', error);
+      console.error('Error details:', error.response || error.message);
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -18,35 +56,15 @@ const Dashboard = () => {
       return;
     }
 
-    const userData = JSON.parse(localStorage.getItem('user') || '{}');
-    setUser(userData);
     fetchDashboardData();
-  }, []);
 
-  const fetchDashboardData = async () => {
-    try {
-      // TODO: Replace with actual API calls
-      setMyCars([
-        { id: 1, brand: 'Honda', model: 'Civic', year: 2020, status: 'available', bookings: 5 },
-        { id: 2, brand: 'Maruti', model: 'Swift', year: 2021, status: 'rented', bookings: 3 }
-      ]);
-
-      setMyBookings([
-        { id: 1, car: 'Toyota Camry', startDate: '2025-12-15', endDate: '2025-12-20', status: 'confirmed' },
-        { id: 2, car: 'BMW 3 Series', startDate: '2025-12-25', endDate: '2025-12-27', status: 'pending' }
-      ]);
-
-      setReceivedBookings([
-        { id: 1, car: 'Honda Civic', renter: 'Alice', startDate: '2025-12-18', endDate: '2025-12-22', status: 'pending' }
-      ]);
-
-      setExchangeRequests([
-        { id: 1, myCar: 'Honda Civic', theirCar: 'Hyundai Creta', user: 'Bob', status: 'pending' }
-      ]);
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+    // Check if coming from AddCar with success and switch to My Cars tab
+    if (location.state?.showTab) {
+      setActiveTab(location.state.showTab);
+      // Clear state to prevent affecting future navigations
+      window.history.replaceState({}, document.title);
     }
-  };
+  }, [navigate, fetchDashboardData, location.state?.showTab]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -54,23 +72,55 @@ const Dashboard = () => {
     navigate('/');
   };
 
-  const handleAcceptBooking = (bookingId) => {
-    // TODO: Implement API call
-    console.log('Accept booking:', bookingId);
-    alert('Booking accepted!');
+  const handleAcceptBooking = async (bookingId) => {
+    try {
+      await bookingAPI.updateBookingStatus(bookingId, 'confirmed');
+      alert('Booking accepted!');
+      fetchDashboardData(); // Refresh data
+    } catch (error) {
+      console.error('Error accepting booking:', error);
+      alert('Failed to accept booking');
+    }
   };
 
-  const handleRejectBooking = (bookingId) => {
-    // TODO: Implement API call
-    console.log('Reject booking:', bookingId);
-    alert('Booking rejected!');
+  const handleRejectBooking = async (bookingId) => {
+    try {
+      await bookingAPI.updateBookingStatus(bookingId, 'cancelled');
+      alert('Booking rejected!');
+      fetchDashboardData(); // Refresh data
+    } catch (error) {
+      console.error('Error rejecting booking:', error);
+      alert('Failed to reject booking');
+    }
   };
 
   return (
     <div className="dashboard">
+      {location.state?.newCarAdded && (
+        <div className="success-banner">
+          ✅ Car added successfully! You can see it below in My Cars.
+        </div>
+      )}
+      
       <div className="dashboard-header">
         <h1>My Dashboard</h1>
-        <button onClick={handleLogout} className="btn btn-secondary">Logout</button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            onClick={async () => {
+              const token = localStorage.getItem('token');
+              const user = localStorage.getItem('user');
+              console.log('🔑 Token:', token ? 'EXISTS (length: ' + token.length + ')' : 'MISSING');
+              console.log('👤 User:', user);
+              console.log('🔄 Manual refresh triggered');
+              await fetchDashboardData();
+            }} 
+            className="btn btn-secondary"
+            style={{ marginRight: '10px' }}
+          >
+            🔄 Refresh
+          </button>
+          <button onClick={handleLogout} className="btn btn-secondary">Logout</button>
+        </div>
       </div>
 
       <div className="dashboard-tabs">
@@ -81,20 +131,20 @@ const Dashboard = () => {
           Overview
         </button>
         <button
-          className={`tab ${activeTab === 'my-cars' ? 'active' : ''}`}
-          onClick={() => setActiveTab('my-cars')}
+          className={`tab ${activeTab === 'myCars' ? 'active' : ''}`}
+          onClick={() => setActiveTab('myCars')}
         >
           My Cars
         </button>
         <button
-          className={`tab ${activeTab === 'my-bookings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('my-bookings')}
+          className={`tab ${activeTab === 'myBookings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('myBookings')}
         >
           My Bookings
         </button>
         <button
-          className={`tab ${activeTab === 'received-bookings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('received-bookings')}
+          className={`tab ${activeTab === 'receivedBookings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('receivedBookings')}
         >
           Received Requests
         </button>
@@ -144,7 +194,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        {activeTab === 'my-cars' && (
+        {activeTab === 'myCars' && (
           <div className="my-cars">
             <div className="section-header">
               <h2>My Cars</h2>
@@ -152,16 +202,26 @@ const Dashboard = () => {
             </div>
 
             <div className="cars-list">
+              {console.log('🚗 myCars state:', myCars)}
+              {console.log('📊 myCars length:', myCars.length)}
               {myCars.length > 0 ? (
                 myCars.map(car => (
-                  <div key={car.id} className="car-item">
+                  <div key={car._id} className="car-item">
                     <div className="car-item-info">
                       <h3>{car.brand} {car.model}</h3>
                       <p>Year: {car.year}</p>
-                      <span className={`status ${car.status}`}>{car.status}</span>
+                      <p>Location: {car.location}, {car.area}</p>
+                      <span className={`status ${car.isAvailable ? 'available' : 'unavailable'}`}>
+                        {car.isAvailable ? 'Available' : 'Unavailable'}
+                      </span>
+                      <span className={`badge ${car.availableFor}`}>
+                        {car.availableFor === 'both' ? 'Rent & Exchange' : car.availableFor}
+                      </span>
                     </div>
                     <div className="car-item-stats">
-                      <p>{car.bookings} total bookings</p>
+                      <p>₹{car.pricePerDay}/day</p>
+                      <p>{car.totalBookings || 0} total bookings</p>
+                      <p>Rating: {car.rating.toFixed(1)} ⭐ ({car.totalRatings})</p>
                     </div>
                     <div className="car-item-actions">
                       <button className="btn-small">Edit</button>
@@ -176,15 +236,16 @@ const Dashboard = () => {
           </div>
         )}
 
-        {activeTab === 'my-bookings' && (
+        {activeTab === 'myBookings' && (
           <div className="my-bookings">
             <h2>My Bookings</h2>
             <div className="bookings-list">
               {myBookings.length > 0 ? (
                 myBookings.map(booking => (
-                  <div key={booking.id} className="booking-item">
-                    <h3>{booking.car}</h3>
-                    <p>{booking.startDate} to {booking.endDate}</p>
+                  <div key={booking._id} className="booking-item">
+                    <h3>{booking.car?.brand} {booking.car?.model}</h3>
+                    <p>{new Date(booking.startDate).toLocaleDateString()} to {new Date(booking.endDate).toLocaleDateString()}</p>
+                    <p>Total: ₹{booking.totalPrice}</p>
                     <span className={`status ${booking.status}`}>{booking.status}</span>
                   </div>
                 ))
@@ -195,30 +256,33 @@ const Dashboard = () => {
           </div>
         )}
 
-        {activeTab === 'received-bookings' && (
+        {activeTab === 'receivedBookings' && (
           <div className="received-bookings">
             <h2>Received Booking Requests</h2>
             <div className="bookings-list">
               {receivedBookings.length > 0 ? (
                 receivedBookings.map(booking => (
-                  <div key={booking.id} className="booking-item">
+                  <div key={booking._id} className="booking-item">
                     <div className="booking-info">
-                      <h3>{booking.car}</h3>
-                      <p>Renter: {booking.renter}</p>
-                      <p>{booking.startDate} to {booking.endDate}</p>
+                      <h3>{booking.car?.brand} {booking.car?.model}</h3>
+                      <p>Renter: {booking.renter?.fullName}</p>
+                      <p>Phone: {booking.renter?.phone}</p>
+                      <p>{new Date(booking.startDate).toLocaleDateString()} to {new Date(booking.endDate).toLocaleDateString()}</p>
+                      <p>Total: ₹{booking.totalPrice} ({booking.totalDays} days)</p>
+                      {booking.message && <p>Message: {booking.message}</p>}
                       <span className={`status ${booking.status}`}>{booking.status}</span>
                     </div>
                     {booking.status === 'pending' && (
                       <div className="booking-actions">
                         <button 
                           className="btn btn-primary btn-small"
-                          onClick={() => handleAcceptBooking(booking.id)}
+                          onClick={() => handleAcceptBooking(booking._id)}
                         >
                           Accept
                         </button>
                         <button 
                           className="btn btn-danger btn-small"
-                          onClick={() => handleRejectBooking(booking.id)}
+                          onClick={() => handleRejectBooking(booking._id)}
                         >
                           Reject
                         </button>

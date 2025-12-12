@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { indianCities, getCityByName } from '../utils/locationUtils';
+import { carAPI } from '../utils/apiService';
 import './AddCar.css';
 
 const AddCar = () => {
@@ -73,19 +74,77 @@ const AddCar = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Please login to add a car');
+      navigate('/login');
+      return;
+    }
+
+    // Validation
+    if (!formData.location || !formData.coordinates.lat) {
+      setError('Please select a city');
+      return;
+    }
+
+    if (formData.availableFor !== 'exchange' && !formData.pricePerDay) {
+      setError('Please enter price per day for rent');
+      return;
+    }
+
+    if (!formData.brand || !formData.model || !formData.year || !formData.seating) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    if (!formData.description) {
+      setError('Please add a description for your car');
+      return;
+    }
+
+    if (!formData.area) {
+      setError('Please enter the area/locality');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // TODO: Implement API call to add car
-      console.log('Car data:', formData);
+      // Prepare car data for API
+      const carData = {
+        brand: formData.brand.trim(),
+        model: formData.model.trim(),
+        year: parseInt(formData.year),
+        type: 'sedan', // You can add a type selector if needed
+        transmission: formData.transmission,
+        fuelType: formData.fuelType,
+        seats: parseInt(formData.seating),
+        pricePerDay: formData.availableFor === 'exchange' ? 0 : parseFloat(formData.pricePerDay),
+        description: formData.description.trim(),
+        features: formData.features,
+        location: formData.location,
+        area: formData.area.trim(),
+        coordinates: formData.coordinates,
+        availableFor: formData.availableFor
+      };
+
+      console.log('Sending car data:', carData);
+
+      const response = await carAPI.createCar(carData);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('API Response:', response);
       
-      alert('Car added successfully!');
-      navigate('/dashboard');
+      if (response.success) {
+        // Navigate to dashboard with state to show My Cars tab
+        navigate('/dashboard', { state: { showTab: 'myCars', newCarAdded: true } });
+      } else {
+        setError(response.message || 'Failed to add car');
+      }
     } catch (err) {
-      setError(err.message || 'Failed to add car. Please try again.');
+      console.error('Error adding car:', err);
+      setError(err.message || 'Network error. Please check if backend is running and try again.');
     } finally {
       setLoading(false);
     }

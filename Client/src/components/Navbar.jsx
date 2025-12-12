@@ -1,15 +1,42 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import './Navbar.css';
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
+  // Check authentication status
+  const checkAuth = () => {
     const token = localStorage.getItem('token');
     setIsLoggedIn(!!token);
+  };
+
+  useEffect(() => {
+    // Check on mount
+    checkAuth();
+
+    // Check on route change
+    checkAuth();
+  }, [location]);
+
+  useEffect(() => {
+    // Listen for storage changes (e.g., login/logout in another tab)
+    const handleStorageChange = () => {
+      checkAuth();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Custom event for same-tab updates
+    window.addEventListener('authChange', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('authChange', handleStorageChange);
+    };
   }, []);
 
   const handleLogout = () => {

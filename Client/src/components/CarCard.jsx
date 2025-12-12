@@ -6,13 +6,19 @@ const CarCard = ({ car, userLocation }) => {
   const navigate = useNavigate();
 
   const handleCardClick = () => {
-    navigate(`/cars/${car.id}`);
+    navigate(`/cars/${car._id || car.id}`);
   };
+
+  // Get owner name from populated owner or fallback
+  const ownerName = car.owner?.fullName || car.owner?.username || 'Unknown';
+  
+  // Get default image if not provided
+  const carImage = car.images?.[0] || `https://via.placeholder.com/300x200?text=${car.brand}+${car.model}`;
 
   return (
     <div className="car-card" onClick={handleCardClick}>
       <div className="car-image">
-        <img src={car.image} alt={`${car.brand} ${car.model}`} />
+        <img src={carImage} alt={`${car.brand} ${car.model}`} />
         <div className="car-badge">
           {car.availableFor === 'rent' && <span className="badge rent">For Rent</span>}
           {car.availableFor === 'exchange' && <span className="badge exchange">For Exchange</span>}
@@ -42,10 +48,10 @@ const CarCard = ({ car, userLocation }) => {
           <span className="car-location">
             📍 {car.area ? `${car.area}, ` : ''}{car.location}
           </span>
-          <span className="car-rating">⭐ {car.rating}</span>
+          <span className="car-rating">⭐ {car.rating?.toFixed(1) || '0.0'}</span>
         </div>
 
-        <p className="car-owner">Owner: {car.owner}</p>
+        <p className="car-owner">Owner: {ownerName}</p>
       </div>
     </div>
   );

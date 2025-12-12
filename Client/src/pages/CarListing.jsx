@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import CarCard from '../components/CarCard';
+import { carAPI } from '../utils/apiService';
 import { 
   getCurrentLocation, 
   calculateDistance, 
@@ -31,172 +32,89 @@ const CarListing = () => {
   }, []);
 
   const fetchCars = useCallback(async () => {
+    setLoading(true);
     try {
-      // TODO: Replace with actual API call
-      // Enhanced dummy data with coordinates
-      const dummyCars = [
-        {
-          id: 1,
-          brand: 'Toyota',
-          model: 'Camry',
-          year: 2022,
-          pricePerDay: 50,
-          location: 'Mumbai',
-          coordinates: { lat: 19.0760, lon: 72.8777 },
-          area: 'Andheri West',
-          image: 'https://via.placeholder.com/300x200?text=Toyota+Camry',
-          availableFor: 'rent',
-          owner: 'John Doe',
-          rating: 4.5
-        },
-        {
-          id: 2,
-          brand: 'Honda',
-          model: 'City',
-          year: 2023,
-          pricePerDay: 45,
-          location: 'Mumbai',
-          coordinates: { lat: 19.1136, lon: 72.8697 },
-          area: 'Bandra',
-          image: 'https://via.placeholder.com/300x200?text=Honda+City',
-          availableFor: 'rent',
-          owner: 'Jane Smith',
-          rating: 4.8
-        },
-        {
-          id: 3,
-          brand: 'BMW',
-          model: '3 Series',
-          year: 2021,
-          location: 'Bangalore',
-          coordinates: { lat: 12.9716, lon: 77.5946 },
-          area: 'Koramangala',
-          image: 'https://via.placeholder.com/300x200?text=BMW+3+Series',
-          availableFor: 'exchange',
-          owner: 'Mike Johnson',
-          rating: 4.9
-        },
-        {
-          id: 4,
-          brand: 'Hyundai',
-          model: 'Creta',
-          year: 2023,
-          pricePerDay: 55,
-          location: 'Pune',
-          coordinates: { lat: 18.5204, lon: 73.8567 },
-          area: 'Kharadi',
-          image: 'https://via.placeholder.com/300x200?text=Hyundai+Creta',
-          availableFor: 'both',
-          owner: 'Sarah Williams',
-          rating: 4.6
-        },
-        {
-          id: 5,
-          brand: 'Maruti',
-          model: 'Swift',
-          year: 2023,
-          pricePerDay: 35,
-          location: 'Mumbai',
-          coordinates: { lat: 19.0330, lon: 73.0297 },
-          area: 'Navi Mumbai',
-          image: 'https://via.placeholder.com/300x200?text=Maruti+Swift',
-          availableFor: 'rent',
-          owner: 'Rahul Sharma',
-          rating: 4.4
-        },
-        {
-          id: 6,
-          brand: 'Tata',
-          model: 'Nexon',
-          year: 2022,
-          pricePerDay: 48,
-          location: 'Delhi',
-          coordinates: { lat: 28.7041, lon: 77.1025 },
-          area: 'Connaught Place',
-          image: 'https://via.placeholder.com/300x200?text=Tata+Nexon',
-          availableFor: 'rent',
-          owner: 'Amit Kumar',
-          rating: 4.7
-        },
-        {
-          id: 7,
-          brand: 'Mahindra',
-          model: 'Thar',
-          year: 2023,
-          pricePerDay: 80,
-          location: 'Bangalore',
-          coordinates: { lat: 12.9352, lon: 77.6245 },
-          area: 'Whitefield',
-          image: 'https://via.placeholder.com/300x200?text=Mahindra+Thar',
-          availableFor: 'both',
-          owner: 'Priya Singh',
-          rating: 4.9
-        },
-        {
-          id: 8,
-          brand: 'Volkswagen',
-          model: 'Polo',
-          year: 2021,
-          pricePerDay: 42,
-          location: 'Pune',
-          coordinates: { lat: 18.5679, lon: 73.9143 },
-          area: 'Hadapsar',
-          image: 'https://via.placeholder.com/300x200?text=VW+Polo',
-          availableFor: 'rent',
-          owner: 'Sneha Patel',
-          rating: 4.3
-        },
-        {
-          id: 9,
-          brand: 'Kia',
-          model: 'Seltos',
-          year: 2023,
-          pricePerDay: 60,
-          location: 'Mumbai',
-          coordinates: { lat: 19.2183, lon: 72.9781 },
-          area: 'Thane',
-          image: 'https://via.placeholder.com/300x200?text=Kia+Seltos',
-          availableFor: 'exchange',
-          owner: 'Vikram Mehta',
-          rating: 4.8
-        },
-        {
-          id: 10,
-          brand: 'MG',
-          model: 'Hector',
-          year: 2022,
-          pricePerDay: 65,
-          location: 'Hyderabad',
-          coordinates: { lat: 17.3850, lon: 78.4867 },
-          area: 'Hitech City',
-          image: 'https://via.placeholder.com/300x200?text=MG+Hector',
-          availableFor: 'both',
-          owner: 'Anjali Reddy',
-          rating: 4.6
+      console.log('🔍 Fetching cars from API...');
+      
+      // Build query parameters
+      const params = {};
+      
+      // Add location-based search if available
+      if (userLocation) {
+        params.lat = userLocation.latitude;
+        params.lon = userLocation.longitude;
+        params.maxDistance = maxDistance;
+      } else if (selectedCity) {
+        const city = getCityByName(selectedCity);
+        if (city) {
+          params.lat = city.lat;
+          params.lon = city.lon;
+          params.maxDistance = maxDistance;
         }
-      ];
-
-      // Add distance to each car if user location is available
-      const carsWithDistance = dummyCars.map(car => {
-        if (userLocation && car.coordinates) {
-          const distance = calculateDistance(
-            userLocation.latitude,
-            userLocation.longitude,
-            car.coordinates.lat,
-            car.coordinates.lon
-          );
-          return { ...car, distance };
-        }
-        return car;
-      });
-
-      setCars(carsWithDistance);
+      }
+      
+      // Add filter
+      if (filter !== 'all') {
+        params.availableFor = filter;
+      }
+      
+      // Add search term
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+      
+      // Add sort
+      params.sortBy = sortBy;
+      
+      console.log('📡 API params:', params);
+      
+      const response = await carAPI.getAllCars(params);
+      console.log('✅ Cars response:', response);
+      
+      if (response.success) {
+        const fetchedCars = response.data.cars || [];
+        
+        // Add distance calculation for client-side
+        const carsWithDistance = fetchedCars.map(car => {
+          if (userLocation && car.coordinates?.coordinates) {
+            const [lon, lat] = car.coordinates.coordinates; // MongoDB stores as [lon, lat]
+            const distance = calculateDistance(
+              userLocation.latitude,
+              userLocation.longitude,
+              lat,
+              lon
+            );
+            return { ...car, distance };
+          } else if (selectedCity && car.coordinates?.coordinates) {
+            const city = getCityByName(selectedCity);
+            if (city) {
+              const [lon, lat] = car.coordinates.coordinates;
+              const distance = calculateDistance(
+                city.lat,
+                city.lon,
+                lat,
+                lon
+              );
+              return { ...car, distance };
+            }
+          }
+          return car;
+        });
+        
+        console.log(`📦 Found ${carsWithDistance.length} cars`);
+        setCars(carsWithDistance);
+      } else {
+        console.error('❌ Failed to fetch cars:', response.message);
+        setCars([]);
+      }
+      
       setLoading(false);
     } catch (error) {
-      console.error('Error fetching cars:', error);
+      console.error('❌ Error fetching cars:', error);
+      setCars([]);
       setLoading(false);
     }
-  }, [userLocation]);
+  }, [userLocation, selectedCity, maxDistance, filter, searchTerm, sortBy]);
 
   useEffect(() => {
     detectUserLocation();

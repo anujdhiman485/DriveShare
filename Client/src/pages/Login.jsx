@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { authAPI } from '../utils/apiService';
 import './Auth.css';
 
 const Login = () => {
@@ -24,12 +25,18 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // TODO: Implement API call to backend
-      console.log('Login data:', formData);
+      const response = await authAPI.login(formData);
       
-      // Temporary: Store token in localStorage (will be replaced with actual API call)
-      localStorage.setItem('token', 'dummy-token');
-      localStorage.setItem('user', JSON.stringify({ email: formData.email }));
+      // Store token and user data
+      if (response.data?.accessToken) {
+        localStorage.setItem('token', response.data.accessToken);
+      }
+      if (response.data?.user) {
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      
+      // Notify app of auth change
+      window.dispatchEvent(new Event('authChange'));
       
       navigate('/dashboard');
     } catch (err) {

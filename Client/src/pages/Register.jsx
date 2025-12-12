@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { authAPI } from '../utils/apiService';
 import './Auth.css';
 
 const Register = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fullName: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -39,15 +41,34 @@ const Register = () => {
     setLoading(true);
 
     try {
-      // TODO: Implement API call to backend
-      console.log('Register data:', formData);
+      // Create username from email if not provided
+      const username = formData.username || formData.email.split('@')[0];
       
-      // Temporary: Store token in localStorage (will be replaced with actual API call)
-      localStorage.setItem('token', 'dummy-token');
-      localStorage.setItem('user', JSON.stringify({ 
+      const response = await authAPI.register({
+        fullName: formData.fullName,
+        username,
         email: formData.email,
-        fullName: formData.fullName 
-      }));
+        password: formData.password,
+        phone: formData.phone
+      });
+      
+      // Auto-login after successful registration
+      if (response.data) {
+        const loginResponse = await authAPI.login({
+          email: formData.email,
+          password: formData.password
+        });
+        
+        if (loginResponse.data?.accessToken) {
+          localStorage.setItem('token', loginResponse.data.accessToken);
+        }
+        if (loginResponse.data?.user) {
+          localStorage.setItem('user', JSON.stringify(loginResponse.data.user));
+        }
+        
+        // Notify app of auth change
+        window.dispatchEvent(new Event('authChange'));
+      }
       
       navigate('/dashboard');
     } catch (err) {
