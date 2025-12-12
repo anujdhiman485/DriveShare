@@ -92,6 +92,7 @@ const getAllCars = asyncHandler(async (req, res) => {
     lat,
     lon,
     maxDistance,
+    city,
     availableFor,
     type,
     transmission,
@@ -106,8 +107,13 @@ const getAllCars = asyncHandler(async (req, res) => {
 
   let query = { isAvailable: true };
 
-  // Location-based search
-  if (lat && lon && maxDistance) {
+  // City-based search (exact match) - prioritize over coordinate-based search
+  if (city) {
+    query.location = { $regex: new RegExp(city, 'i') }; // Case-insensitive match
+    console.log(`🏙️ Filtering by city: ${city}`);
+  }
+  // Coordinate-based search (radius) - only if no city specified
+  else if (lat && lon && maxDistance) {
     const latitude = parseFloat(lat);
     const longitude = parseFloat(lon);
     const distance = parseFloat(maxDistance) * 1000; // Convert km to meters
@@ -121,6 +127,7 @@ const getAllCars = asyncHandler(async (req, res) => {
         $maxDistance: distance,
       },
     };
+    console.log(`📍 Filtering by coordinates within ${maxDistance}km`);
   }
 
   // Filter by availability type

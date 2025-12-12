@@ -102,6 +102,18 @@ const Dashboard = () => {
         </div>
       )}
       
+      {location.state?.newBooking && (
+        <div className="success-banner">
+          ✅ Booking request submitted successfully! You can see it below in My Bookings.
+        </div>
+      )}
+      
+      {location.state?.newExchange && (
+        <div className="success-banner">
+          ✅ Exchange request submitted successfully! You can see it below in My Bookings.
+        </div>
+      )}
+      
       <div className="dashboard-header">
         <h1>My Dashboard</h1>
         <div style={{ display: 'flex', gap: '10px' }}>

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { bookingAPI, exchangeAPI, carAPI } from '../utils/apiService';
 import './BookingPage.css';
 
 const BookingPage = () => {
@@ -15,11 +16,26 @@ const BookingPage = () => {
     carForExchange: null
   });
 
-  const [myCars, setMyCars] = useState([
-    // Dummy data for exchange
-    { id: 1, brand: 'Honda', model: 'Civic', year: 2020 },
-    { id: 2, brand: 'Maruti', model: 'Swift', year: 2021 }
-  ]);
+  const [myCars, setMyCars] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Fetch user's cars if type is exchange
+  useEffect(() => {
+    const fetchMyCars = async () => {
+      if (type === 'exchange') {
+        try {
+          const response = await carAPI.getMyCars();
+          if (response.success) {
+            setMyCars(response.data || []);
+          }
+        } catch (err) {
+          console.error('Error fetching cars:', err);
+        }
+      }
+    };
+    fetchMyCars();
+  }, [type]);
 
   const handleChange = (e) => {
     setBookingData({
@@ -41,20 +57,67 @@ const BookingPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('Please login to create a booking');
+      navigate('/login');
+      return;
+    }
 
     if (type === 'exchange' && !bookingData.carForExchange) {
-      alert('Please select a car for exchange');
+      setError('Please select a car for exchange');
+      setLoading(false);
       return;
     }
 
     try {
-      // TODO: Implement API call
-      console.log('Booking data:', { ...bookingData, carId: id, type });
-      alert(`${type === 'rent' ? 'Booking' : 'Exchange request'} submitted successfully!`);
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Error creating booking:', error);
-      alert('Failed to create booking. Please try again.');
+      if (type === 'rent') {
+        // Create rental booking
+        const bookingPayload = {
+          carId: id,  // Match backend expectation
+          startDate: bookingData.startDate,
+          endDate: bookingData.endDate,
+          message: bookingData.message || ''
+        };
+
+        console.log('Creating booking:', bookingPayload);
+        const response = await bookingAPI.createBooking(bookingPayload);
+        
+        if (response.success) {
+          alert('Booking request submitted successfully! Check your dashboard.');
+          navigate('/dashboard', { state: { showTab: 'myBookings', newBooking: true } });
+        } else {
+          setError(response.message || 'Failed to create booking');
+        }
+      } else {
+        // Create exchange request
+        const exchangePayload = {
+          requestedCar: id,
+          offeredCar: bookingData.carForExchange,
+          startDate: bookingData.startDate,
+          endDate: bookingData.endDate,
+          message: bookingData.message || ''
+        };
+
+        console.log('Creating exchange:', exchangePayload);
+        const response = await exchangeAPI.createExchangeRequest(exchangePayload);
+        
+        if (response.success) {
+          alert('Exchange request submitted successfully! Check your dashboard.');
+          navigate('/dashboard', { state: { showTab: 'myBookings', newExchange: true } });
+        } else {
+          setError(response.message || 'Failed to create exchange request');
+        }
+      }
+    } catch (err) {
+      console.error('Error creating booking:', err);
+      setError(err.message || 'Failed to create booking. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -92,6 +155,8 @@ const BookingPage = () => {
 
         <div className="booking-form-section">
           <h2>{type === 'rent' ? 'Complete Your Booking' : 'Request Car Exchange'}</h2>
+          
+          {error && <div className="error-message">{error}</div>}
           
           <form onSubmit={handleSubmit} className="booking-form">
             <div className="form-group">
@@ -136,7 +201,7 @@ const BookingPage = () => {
                 >
                   <option value="">Choose a car...</option>
                   {myCars.map(myCar => (
-                    <option key={myCar.id} value={myCar.id}>
+                    <option key={myCar._id || myCar.id} value={myCar._id || myCar.id}>
                       {myCar.brand} {myCar.model} ({myCar.year})
                     </option>
                   ))}
@@ -156,8 +221,11 @@ const BookingPage = () => {
               />
             </div>
 
-            <button type="submit" className="btn btn-primary btn-full">
-              {type === 'rent' ? 'Confirm Booking' : 'Send Exchange Request'}
+            <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
+              {loading 
+                ? 'Processing...' 
+                : type === 'rent' ? 'Confirm Booking' : 'Send Exchange Request'
+              }
             </button>
           </form>
         </div>

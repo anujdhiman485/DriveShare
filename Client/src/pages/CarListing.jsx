@@ -16,7 +16,7 @@ const CarListing = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [userLocation, setUserLocation] = useState(null);
   const [selectedCity, setSelectedCity] = useState('');
-  const [maxDistance, setMaxDistance] = useState(50); // default 50km
+  const [maxDistance, setMaxDistance] = useState(200); // default 200km
   const [sortBy, setSortBy] = useState('distance'); // distance, price, rating
   const [locationError, setLocationError] = useState('');
 
@@ -39,18 +39,24 @@ const CarListing = () => {
       // Build query parameters
       const params = {};
       
-      // Add location-based search if available
-      if (userLocation) {
+      // If city is manually selected, use city-based search (shows ALL cars in that city)
+      if (selectedCity) {
+        params.city = selectedCity;
+        console.log('🏙️ Using city-based search:', selectedCity);
+      }
+      // Otherwise, use live location with radius search
+      else if (userLocation) {
         params.lat = userLocation.latitude;
         params.lon = userLocation.longitude;
         params.maxDistance = maxDistance;
-      } else if (selectedCity) {
-        const city = getCityByName(selectedCity);
-        if (city) {
-          params.lat = city.lat;
-          params.lon = city.lon;
-          params.maxDistance = maxDistance;
-        }
+        console.log('📍 Using live location within', maxDistance, 'km');
+      }
+      // No location available - don't fetch cars
+      else {
+        console.log('⚠️ No location available - waiting for user location or city selection');
+        setCars([]);
+        setLoading(false);
+        return;
       }
       
       // Add filter
@@ -74,34 +80,43 @@ const CarListing = () => {
       if (response.success) {
         const fetchedCars = response.data.cars || [];
         
-        // Add distance calculation for client-side
+        // Add distance calculation for client-side display
         const carsWithDistance = fetchedCars.map(car => {
-          if (userLocation && car.coordinates?.coordinates) {
+          if (car.coordinates?.coordinates) {
             const [lon, lat] = car.coordinates.coordinates; // MongoDB stores as [lon, lat]
-            const distance = calculateDistance(
-              userLocation.latitude,
-              userLocation.longitude,
-              lat,
-              lon
-            );
-            return { ...car, distance };
-          } else if (selectedCity && car.coordinates?.coordinates) {
-            const city = getCityByName(selectedCity);
-            if (city) {
-              const [lon, lat] = car.coordinates.coordinates;
+            
+            // Calculate distance from user's live location
+            if (userLocation && !selectedCity) {
               const distance = calculateDistance(
-                city.lat,
-                city.lon,
+                userLocation.latitude,
+                userLocation.longitude,
                 lat,
                 lon
               );
               return { ...car, distance };
             }
+            // Calculate distance from selected city
+            else if (selectedCity) {
+              const city = getCityByName(selectedCity);
+              if (city) {
+                const distance = calculateDistance(
+                  city.lat,
+                  city.lon,
+                  lat,
+                  lon
+                );
+                return { ...car, distance };
+              }
+            }
           }
           return car;
         });
         
-        console.log(`📦 Found ${carsWithDistance.length} cars`);
+        if (selectedCity) {
+          console.log(`📦 Found ${carsWithDistance.length} cars in ${selectedCity}`);
+        } else {
+          console.log(`📦 Found ${carsWithDistance.length} cars within ${maxDistance}km`);
+        }
         setCars(carsWithDistance);
       } else {
         console.error('❌ Failed to fetch cars:', response.message);
@@ -226,10 +241,10 @@ const CarListing = () => {
           </select>
         </div>
 
-        {userLocation && (
+        {(userLocation || selectedCity) && (
           <div className="distance-filter">
             <label htmlFor="distanceRange">
-              Show cars within: <strong>{maxDistance}km</strong>
+              Search radius: <strong>{maxDistance}km</strong>
             </label>
             <input
               type="range"
@@ -297,25 +312,56 @@ const CarListing = () => {
         </div>
       </div>
 
-      {sortedCars.length > 0 && (
+      {(userLocation || selectedCity) && (
         <div className="results-info">
-          Found <strong>{sortedCars.length}</strong> cars
-          {selectedCity && ` in ${selectedCity}`}
-          {userLocation && !selectedCity && ` within ${maxDistance}km`}
+          {sortedCars.length > 0 ? (
+            <>
+              Found <strong>{sortedCars.length}</strong> cars
+              {selectedCity ? (
+                <> in <strong>{selectedCity}</strong></>
+              ) : (
+                <> within <strong>{maxDistance}km</strong> of your location</>
+              )}
+            </>
+          ) : (
+            <p>
+              {selectedCity 
+                ? `Searching for cars in ${selectedCity}...`
+                : `Searching for cars within ${maxDistance}km...`
+              }
+            </p>
+          )}
         </div>
       )}
 
       <div className="cars-grid">
-        {sortedCars.length > 0 ? (
+        {loading ? (
+          <div className="loading-message">
+            <p>Loading cars...</p>
+          </div>
+        ) : !userLocation && !selectedCity ? (
+          <div className="no-results">
+            <h3>📍 Location Required</h3>
+            <p>Please allow location access or select a city to see available cars within 200km radius.</p>
+            <button className="btn-primary" onClick={detectUserLocation}>
+              Enable Location Access
+            </button>
+          </div>
+        ) : sortedCars.length > 0 ? (
           sortedCars.map(car => (
-            <CarCard key={car.id} car={car} userLocation={userLocation} />
+            <CarCard key={car._id || car.id} car={car} userLocation={userLocation} />
           ))
         ) : (
           <div className="no-results">
-            <p>No cars found matching your criteria</p>
-            {userLocation && (
-              <button className="btn-secondary" onClick={() => setMaxDistance(maxDistance + 50)}>
-                Expand search area to {maxDistance + 50}km
+            <p>
+              {selectedCity 
+                ? `No cars found in ${selectedCity}`
+                : `No cars found within ${maxDistance}km of your location`
+              }
+            </p>
+            {!selectedCity && maxDistance < 200 && (
+              <button className="btn-secondary" onClick={() => setMaxDistance(Math.min(maxDistance + 50, 200))}>
+                Expand search area to {Math.min(maxDistance + 50, 200)}km
               </button>
             )}
           </div>
