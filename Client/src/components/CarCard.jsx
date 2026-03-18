@@ -13,12 +13,29 @@ const CarCard = ({ car, userLocation }) => {
   const ownerName = car.owner?.fullName || car.owner?.username || 'Unknown';
   
   // Get default image if not provided
-  const carImage = car.images?.[0] || `https://via.placeholder.com/300x200?text=${car.brand}+${car.model}`;
+  const carImage = car.images?.[0] || `https://via.placeholder.com/300x200/667eea/ffffff?text=${encodeURIComponent(car.brand + ' ' + car.model)}`;
+  
+  // Debug logging
+  if (!car.images || car.images.length === 0) {
+    console.log('⚠️ CarCard missing images:', {
+      brand: car.brand,
+      model: car.model,
+      images: car.images,
+      fallbackImage: carImage
+    });
+  }
 
   return (
     <div className="car-card" onClick={handleCardClick}>
       <div className="car-image">
-        <img src={carImage} alt={`${car.brand} ${car.model}`} />
+        <img 
+          src={carImage} 
+          alt={`${car.brand} ${car.model}`}
+          onError={(e) => {
+            console.error('❌ Image failed to load:', carImage);
+            e.target.src = `https://via.placeholder.com/300x200/667eea/ffffff?text=${encodeURIComponent(car.brand + ' ' + car.model)}`;
+          }}
+        />
         <div className="car-badge">
           {car.availableFor === 'rent' && <span className="badge rent">For Rent</span>}
           {car.availableFor === 'exchange' && <span className="badge exchange">For Exchange</span>}

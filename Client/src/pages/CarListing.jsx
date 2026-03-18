@@ -5,7 +5,8 @@ import {
   getCurrentLocation, 
   calculateDistance, 
   indianCities, 
-  getCityByName
+  getCityByName,
+  findNearestCities
 } from '../utils/locationUtils';
 import './CarListing.css';
 
@@ -15,6 +16,7 @@ const CarListing = () => {
   const [filter, setFilter] = useState('all'); // all, rent, exchange
   const [searchTerm, setSearchTerm] = useState('');
   const [userLocation, setUserLocation] = useState(null);
+  const [nearestCity, setNearestCity] = useState(null);
   const [selectedCity, setSelectedCity] = useState(''); // Default to empty string (All Cities)
   const [maxDistance, setMaxDistance] = useState(200); // default 200km
   const [sortBy, setSortBy] = useState('distance'); // distance, price, rating
@@ -26,8 +28,15 @@ const CarListing = () => {
       const location = await getCurrentLocation();
       setUserLocation(location);
       setSelectedCity(null); // Clear city selection when using live location
-      setLocationError('');
-    } catch (error) {
+      setLocationError('');      
+      // Find nearest city
+      const nearestCities = findNearestCities(location.latitude, location.longitude, 200, 1);
+      if (nearestCities.length > 0) {
+        setNearestCity(nearestCities[0]);
+        console.log('📍 Nearest city:', nearestCities[0].name, `(${nearestCities[0].distance}km away)`);
+      } else {
+        setNearestCity(null);
+      }    } catch (error) {
       console.error('Error getting location:', error);
       setLocationError('Unable to get your location. Please try again or select a city manually.');
     } finally {
@@ -85,6 +94,11 @@ const CarListing = () => {
       
       if (response.success) {
         const fetchedCars = response.data.cars || [];
+        console.log('🖼️ Sample car images:', fetchedCars.slice(0, 2).map(c => ({
+          brand: c.brand,
+          model: c.model,
+          images: c.images
+        })));
         
         // Add distance calculation for client-side display
         const carsWithDistance = fetchedCars.map(car => {
@@ -147,6 +161,7 @@ const CarListing = () => {
   const handleCitySelect = (cityName) => {
     setSelectedCity(cityName);
     setUserLocation(null); // Clear live location when selecting a city
+    setNearestCity(null); // Clear nearest city
   };
 
   const handleUseMyLocation = () => {
@@ -219,7 +234,15 @@ const CarListing = () => {
 
         {userLocation && selectedCity === null && (
           <div className="location-info">
-            <span className="location-badge">✓ Using your current location ({maxDistance}km radius)</span>
+            <span className="location-badge">
+              ✓ Using your current location
+              {nearestCity && (
+                <span> near <strong>{nearestCity.name}, {nearestCity.state}</strong> ({Math.round(nearestCity.distance)}km away)</span>
+              )}
+            </span>
+            <div style={{ fontSize: '0.85em', marginTop: '5px', color: '#666' }}>
+              📍 {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+            </div>
           </div>
         )}
 

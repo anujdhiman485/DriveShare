@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { indianCities, getCityByName } from '../utils/locationUtils';
+import { indianCities, getCityByName, getCurrentLocation, findNearestCities } from '../utils/locationUtils';
 import { carAPI } from '../utils/apiService';
 import './AddCar.css';
 
@@ -25,6 +25,8 @@ const AddCar = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [detectedCity, setDetectedCity] = useState(null);
 
   const featureOptions = [
     'AC', 'Power Steering', 'ABS', 'Airbags', 'Music System', 
@@ -59,6 +61,48 @@ const AddCar = () => {
         ...formData,
         [name]: value
       });
+    }
+  };
+
+  const handleUseMyLocation = async () => {
+    setDetectingLocation(true);
+    setError('');
+    
+    try {
+      const location = await getCurrentLocation();
+      console.log('📍 Detected location:', location);
+      
+      // Find nearest city
+      const nearestCities = findNearestCities(location.latitude, location.longitude, 100, 1);
+      
+      if (nearestCities.length > 0) {
+        const nearest = nearestCities[0];
+        console.log('🏙️ Nearest city:', nearest.name, nearest.distance, 'km away');
+        
+        setDetectedCity(nearest);
+        setFormData({
+          ...formData,
+          location: nearest.name,
+          coordinates: { 
+            lat: location.latitude, 
+            lon: location.longitude 
+          }
+        });
+      } else {
+        setFormData({
+          ...formData,
+          coordinates: { 
+            lat: location.latitude, 
+            lon: location.longitude 
+          }
+        });
+        setError('Location detected, but no nearby city found in our list. Please select a city manually.');
+      }
+    } catch (err) {
+      console.error('Location detection error:', err);
+      setError(err.message || 'Failed to detect location. Please enable location permission and try again.');
+    } finally {
+      setDetectingLocation(false);
     }
   };
 
@@ -258,25 +302,42 @@ const AddCar = () => {
             <h2>Location & Pricing</h2>
             
             <div className="form-row">
-              <div className="form-group">
+              <div className="form-group full-width">
                 <label htmlFor="location">City *</label>
-                <select
-                  id="location"
-                  name="location"
-                  value={formData.location}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="">Select a city</option>
-                  {indianCities.map(city => (
-                    <option key={city.name} value={city.name}>
-                      {city.name}, {city.state}
-                    </option>
-                  ))}
-                </select>
+                <div className="location-input-group">
+                  <select
+                    id="location"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="">Select a city</option>
+                    {indianCities.map(city => (
+                      <option key={city.name} value={city.name}>
+                        {city.name}, {city.state}
+                      </option>
+                    ))}
+                  </select>
+                  <button 
+                    type="button" 
+                    className="use-location-btn"
+                    onClick={handleUseMyLocation}
+                    disabled={detectingLocation}
+                  >
+                    {detectingLocation ? '📍 Detecting...' : '📍 Use My Location'}
+                  </button>
+                </div>
                 <small>Select the city where your car is located</small>
+                {detectedCity && (
+                  <div className="detected-location-info">
+                    ✓ Location detected near {detectedCity.name}, {detectedCity.state} ({detectedCity.distance.toFixed(1)}km away)
+                  </div>
+                )}
               </div>
+            </div>
 
+            <div className="form-row">
               <div className="form-group">
                 <label htmlFor="area">Area/Locality *</label>
                 <input

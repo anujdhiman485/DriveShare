@@ -57,6 +57,11 @@ const createCar = asyncHandler(async (req, res) => {
     );
   }
 
+  // Add default placeholder image if no images provided
+  const carImages = req.body.images && req.body.images.length > 0 
+    ? req.body.images 
+    : [`https://via.placeholder.com/800x600/667eea/ffffff?text=${encodeURIComponent(brand + ' ' + model)}`];
+
   const car = await Car.create({
     owner: req.user._id,
     brand,
@@ -71,6 +76,7 @@ const createCar = asyncHandler(async (req, res) => {
     features: features || [],
     location,
     area: area || "",
+    images: carImages,
     coordinates: {
       type: "Point",
       coordinates: [coordinates.lon, coordinates.lat], // [longitude, latitude]
@@ -117,19 +123,19 @@ const getAllCars = asyncHandler(async (req, res) => {
   else if (lat && lon && maxDistance) {
     const latitude = parseFloat(lat);
     const longitude = parseFloat(lon);
-    const distance = parseFloat(maxDistance) * 1000; // Convert km to meters
+    const distanceInKm = parseFloat(maxDistance);
+    
+    // Use $geoWithin with $centerSphere for radius search
+    // $centerSphere uses radians: distance_in_km / 6378.1 (Earth's radius in km)
+    const radiusInRadians = distanceInKm / 6378.1;
 
     query.coordinates = {
-      $near: {
-        $geometry: {
-          type: "Point",
-          coordinates: [longitude, latitude],
-        },
-        $maxDistance: distance,
-      },
+      $geoWithin: {
+        $centerSphere: [[longitude, latitude], radiusInRadians]
+      }
     };
     useGeoQuery = true;
-    console.log(`📍 Filtering by coordinates within ${maxDistance}km`);
+    console.log(`📍 Filtering by coordinates (${latitude}, ${longitude}) within ${distanceInKm}km (${radiusInRadians} radians)`);
   } else {
     // No location filter - show all cars
     console.log(`🌍 Showing all cars (no location filter)`);
@@ -202,15 +208,24 @@ const getAllCars = asyncHandler(async (req, res) => {
     .skip(skip)
     .limit(parseInt(limit));
 
+  // Add default images for cars without images
+  const carsWithImages = cars.map(car => {
+    const carObj = car.toObject();
+    if (!carObj.images || carObj.images.length === 0) {
+      carObj.images = [`https://via.placeholder.com/800x600/667eea/ffffff?text=${encodeURIComponent(carObj.brand + ' ' + carObj.model)}`];
+    }
+    return carObj;
+  });
+
   const total = await Car.countDocuments(query);
 
-  console.log(`✅ Found ${cars.length} cars out of ${total} total matching query`);
+  console.log(`✅ Found ${carsWithImages.length} cars out of ${total} total matching query`);
 
   return res.status(200).json(
     new ApiResponse(
       200,
       {
-        cars,
+        cars: carsWithImages,
         pagination: {
           total,
           page: parseInt(page),
@@ -236,6 +251,12 @@ const getCarById = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Car not found");
   }
 
+  // Add default image if car has no images
+  const carObj = car.toObject();
+  if (!carObj.images || carObj.images.length === 0) {
+    carObj.images = [`https://via.placeholder.com/800x600/667eea/ffffff?text=${encodeURIComponent(carObj.brand + ' ' + carObj.model)}`];
+  }
+
   // Get reviews for this car
   const reviews = await Review.find({ car: id })
     .populate("reviewer", "fullName avatar rating")
@@ -246,7 +267,7 @@ const getCarById = asyncHandler(async (req, res) => {
     new ApiResponse(
       200,
       {
-        car,
+        car: carObj,
         reviews,
       },
       "Car details fetched successfully"
@@ -264,9 +285,18 @@ const getCarsByOwner = asyncHandler(async (req, res) => {
 
   console.log(`Found ${cars.length} cars for owner`);
 
+  // Add default images for cars without images
+  const carsWithImages = cars.map(car => {
+    const carObj = car.toObject();
+    if (!carObj.images || carObj.images.length === 0) {
+      carObj.images = [`https://via.placeholder.com/800x600/667eea/ffffff?text=${encodeURIComponent(carObj.brand + ' ' + carObj.model)}`];
+    }
+    return carObj;
+  });
+
   return res
     .status(200)
-    .json(new ApiResponse(200, cars, "Owner cars fetched successfully"));
+    .json(new ApiResponse(200, carsWithImages, "Owner cars fetched successfully"));
 });
 
 // Update car

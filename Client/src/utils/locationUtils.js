@@ -94,6 +94,8 @@ export const indianCities = [
   { name: 'Agra', state: 'Uttar Pradesh', lat: 27.1767, lon: 78.0081 },
   { name: 'Nashik', state: 'Maharashtra', lat: 19.9975, lon: 73.7898 },
   { name: 'Faridabad', state: 'Haryana', lat: 28.4089, lon: 77.3178 },
+  { name: 'Ambala', state: 'Haryana', lat: 30.3782, lon: 76.7767 },
+  { name: 'Panchkula', state: 'Haryana', lat: 30.6942, lon: 76.8534 },
   { name: 'Meerut', state: 'Uttar Pradesh', lat: 28.9845, lon: 77.7064 },
   { name: 'Rajkot', state: 'Gujarat', lat: 22.3039, lon: 70.8022 },
   { name: 'Kalyan-Dombivali', state: 'Maharashtra', lat: 19.2403, lon: 73.1305 },

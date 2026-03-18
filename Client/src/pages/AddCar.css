@@ -70,6 +70,55 @@
   font-size: 0.85rem;
 }
 
+.location-input-group {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.location-input-group select {
+  flex: 1;
+}
+
+.use-location-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.use-location-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.use-location-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.detected-location-info {
+  margin-top: 10px;
+  padding: 10px 15px;
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  border-radius: 6px;
+  color: #1565c0;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+
 .radio-group {
   display: flex;
   gap: 20px;
@@ -127,5 +176,13 @@
 
   .features-grid {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+
+  .location-input-group {
+    flex-direction: column;
+  }
+
+  .use-location-btn {
+    width: 100%;
   }
 }
