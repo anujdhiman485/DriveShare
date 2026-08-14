@@ -41,11 +41,11 @@ const CarDetails = () => {
       return;
     }
 
-    if (bookingType === 'rent') {
-      navigate(`/book/${id}`, { state: { car, type: 'rent' } });
-    } else {
-      navigate(`/book/${id}`, { state: { car, type: 'exchange' } });
-    }
+    // availableFor === 'exchange' cars can only ever be exchanged
+    const type =
+      car.availableFor === 'exchange' || bookingType === 'exchange' ? 'exchange' : 'rent';
+
+    navigate(`/book/${id}?type=${type}`, { state: { car, type } });
   };
 
   if (loading) {

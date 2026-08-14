@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { useParams, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { bookingAPI, exchangeAPI, carAPI } from '../utils/apiService';
 import './BookingPage.css';
 
@@ -7,7 +7,16 @@ const BookingPage = () => {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { car, type } = location.state || {};
+  const [searchParams] = useSearchParams();
+
+  // location.state is only there when we arrived from the car details page; a refresh
+  // or a shared link has to rebuild both the car and the booking type from the URL.
+  const [car, setCar] = useState(location.state?.car || null);
+  const [carLoading, setCarLoading] = useState(!location.state?.car);
+  const type =
+    searchParams.get('type') ||
+    location.state?.type ||
+    (car?.availableFor === 'exchange' ? 'exchange' : 'rent');
 
   const [bookingData, setBookingData] = useState({
     startDate: '',
@@ -19,6 +28,31 @@ const BookingPage = () => {
   const [myCars, setMyCars] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!localStorage.getItem('token')) {
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  // Rehydrate the car when we didn't get it through navigation state
+  useEffect(() => {
+    if (car) return;
+
+    const fetchCar = async () => {
+      try {
+        const response = await carAPI.getCarById(id);
+        if (response.success && response.data) {
+          setCar(response.data.car || response.data);
+        }
+      } catch (err) {
+        console.error('Error fetching car:', err);
+      } finally {
+        setCarLoading(false);
+      }
+    };
+    fetchCar();
+  }, [id, car]);
 
   // Fetch user's cars if type is exchange
   useEffect(() => {
@@ -86,18 +120,20 @@ const BookingPage = () => {
 
         console.log('Creating booking:', bookingPayload);
         const response = await bookingAPI.createBooking(bookingPayload);
-        
-        if (response.success) {
-          alert('Booking request submitted successfully! Check your dashboard.');
-          navigate('/dashboard', { state: { showTab: 'myBookings', newBooking: true } });
+
+        if (response.success && response.data?._id) {
+          navigate(`/booking/${response.data._id}`, {
+            replace: true,
+            state: { record: response.data }
+          });
         } else {
           setError(response.message || 'Failed to create booking');
         }
       } else {
-        // Create exchange request
+        // Create exchange request — backend expects the *Id suffixed field names
         const exchangePayload = {
-          requestedCar: id,
-          offeredCar: bookingData.carForExchange,
+          requestedCarId: id,
+          offeredCarId: bookingData.carForExchange,
           startDate: bookingData.startDate,
           endDate: bookingData.endDate,
           message: bookingData.message || ''
@@ -105,10 +141,12 @@ const BookingPage = () => {
 
         console.log('Creating exchange:', exchangePayload);
         const response = await exchangeAPI.createExchangeRequest(exchangePayload);
-        
-        if (response.success) {
-          alert('Exchange request submitted successfully! Check your dashboard.');
-          navigate('/dashboard', { state: { showTab: 'myBookings', newExchange: true } });
+
+        if (response.success && response.data?._id) {
+          navigate(`/exchange/${response.data._id}`, {
+            replace: true,
+            state: { record: response.data }
+          });
         } else {
           setError(response.message || 'Failed to create exchange request');
         }
@@ -120,6 +158,10 @@ const BookingPage = () => {
       setLoading(false);
     }
   };
+
+  if (carLoading) {
+    return <div className="loading">Loading booking details...</div>;
+  }
 
   if (!car) {
     return <div className="error">Invalid booking request</div>;

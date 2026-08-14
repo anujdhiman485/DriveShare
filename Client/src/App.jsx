@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import CarListing from './pages/CarListing';
 import CarDetails from './pages/CarDetails';
 import BookingPage from './pages/BookingPage';
+import BookingConfirmation from './pages/BookingConfirmation';
 import Dashboard from './pages/Dashboard';
 import AddCar from './pages/AddCar';
 import './App.css';
@@ -41,6 +42,8 @@ const AnimatedRoutes = () => {
         <Route path="/cars" element={<CarListing />} />
         <Route path="/cars/:id" element={<CarDetails />} />
         <Route path="/book/:id" element={<BookingPage />} />
+        <Route path="/booking/:id" element={<BookingConfirmation kind="rent" />} />
+        <Route path="/exchange/:id" element={<BookingConfirmation kind="exchange" />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/add-car" element={<AddCar />} />
       </Routes>

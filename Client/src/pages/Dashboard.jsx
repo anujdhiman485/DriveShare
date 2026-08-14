@@ -12,6 +12,7 @@ const Dashboard = () => {
   const [myBookings, setMyBookings] = useState([]);
   const [receivedBookings, setReceivedBookings] = useState([]);
   const [exchangeRequests, setExchangeRequests] = useState([]);
+  const [myExchanges, setMyExchanges] = useState([]);
 
   const fetchDashboardData = useCallback(async () => {
     console.log('🔄 Fetching dashboard data...');
@@ -43,6 +44,12 @@ const Dashboard = () => {
       const exchangeResponse = await exchangeAPI.getReceivedExchangeRequests();
       if (exchangeResponse.success) {
         setExchangeRequests(exchangeResponse.data || []);
+      }
+
+      // Fetch exchange requests the user sent
+      const myExchangeResponse = await exchangeAPI.getMyExchangeRequests();
+      if (myExchangeResponse.success) {
+        setMyExchanges(myExchangeResponse.data || []);
       }
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
@@ -103,23 +110,24 @@ const Dashboard = () => {
     }
   };
 
+  const handleExchangeStatus = async (exchangeId, status) => {
+    try {
+      await exchangeAPI.updateExchangeStatus(exchangeId, status);
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error updating exchange:', error);
+      alert(error.message || 'Failed to update exchange request');
+    }
+  };
+
+  const formatRange = (start, end) =>
+    `${new Date(start).toLocaleDateString()} to ${new Date(end).toLocaleDateString()}`;
+
   return (
     <div className="dashboard">
       {location.state?.newCarAdded && (
         <div className="success-banner">
           ✅ Car added successfully! You can see it below in My Cars.
-        </div>
-      )}
-      
-      {location.state?.newBooking && (
-        <div className="success-banner">
-          ✅ Booking request submitted successfully! You can see it below in My Bookings.
-        </div>
-      )}
-      
-      {location.state?.newExchange && (
-        <div className="success-banner">
-          ✅ Exchange request submitted successfully! You can see it below in My Bookings.
         </div>
       )}
       
@@ -261,15 +269,47 @@ const Dashboard = () => {
             <div className="bookings-list">
               {myBookings.length > 0 ? (
                 myBookings.map(booking => (
-                  <div key={booking._id} className="booking-item">
-                    <h3>{booking.car?.brand} {booking.car?.model}</h3>
-                    <p>{new Date(booking.startDate).toLocaleDateString()} to {new Date(booking.endDate).toLocaleDateString()}</p>
-                    <p>Total: ₹{booking.totalPrice}</p>
-                    <span className={`status ${booking.status}`}>{booking.status}</span>
-                  </div>
+                  <Link
+                    key={booking._id}
+                    to={`/booking/${booking._id}`}
+                    className="booking-item booking-item-link"
+                  >
+                    <div className="booking-info">
+                      <h3>{booking.car?.brand} {booking.car?.model}</h3>
+                      <p>{formatRange(booking.startDate, booking.endDate)}</p>
+                      <p>Total: ₹{booking.totalPrice} ({booking.totalDays} days)</p>
+                      <span className={`status ${booking.status}`}>{booking.status}</span>
+                    </div>
+                    <span className="booking-chevron">View details →</span>
+                  </Link>
                 ))
               ) : (
                 <p className="empty-state">No bookings yet. <Link to="/cars">Browse cars</Link></p>
+              )}
+            </div>
+
+            <h2 style={{ marginTop: '1.5rem' }}>My Exchange Requests</h2>
+            <div className="bookings-list">
+              {myExchanges.length > 0 ? (
+                myExchanges.map(exchange => (
+                  <Link
+                    key={exchange._id}
+                    to={`/exchange/${exchange._id}`}
+                    className="booking-item booking-item-link"
+                  >
+                    <div className="booking-info">
+                      <h3>{exchange.requestedCar?.brand} {exchange.requestedCar?.model}</h3>
+                      <p>
+                        You offered: {exchange.offeredCar?.brand} {exchange.offeredCar?.model}
+                      </p>
+                      <p>{formatRange(exchange.startDate, exchange.endDate)}</p>
+                      <span className={`status ${exchange.status}`}>{exchange.status}</span>
+                    </div>
+                    <span className="booking-chevron">View details →</span>
+                  </Link>
+                ))
+              ) : (
+                <p className="empty-state">No exchange requests sent yet.</p>
               )}
             </div>
           </div>
@@ -322,17 +362,30 @@ const Dashboard = () => {
             <div className="exchanges-list">
               {exchangeRequests.length > 0 ? (
                 exchangeRequests.map(request => (
-                  <div key={request.id} className="exchange-item">
+                  <div key={request._id} className="exchange-item">
                     <div className="exchange-info">
-                      <h3>Exchange Request from {request.user}</h3>
-                      <p>Your car: {request.myCar}</p>
-                      <p>Their car: {request.theirCar}</p>
+                      <h3>Exchange Request from {request.requester?.fullName || 'A user'}</h3>
+                      <p>Your car: {request.requestedCar?.brand} {request.requestedCar?.model} ({request.requestedCar?.year})</p>
+                      <p>Their car: {request.offeredCar?.brand} {request.offeredCar?.model} ({request.offeredCar?.year})</p>
+                      <p>{formatRange(request.startDate, request.endDate)} • {request.totalDays} days</p>
+                      {request.requester?.phone && <p>Phone: {request.requester.phone}</p>}
+                      {request.message && <p>Message: {request.message}</p>}
                       <span className={`status ${request.status}`}>{request.status}</span>
                     </div>
                     {request.status === 'pending' && (
                       <div className="exchange-actions">
-                        <button className="btn btn-primary btn-small">Accept</button>
-                        <button className="btn btn-danger btn-small">Reject</button>
+                        <button
+                          className="btn btn-primary btn-small"
+                          onClick={() => handleExchangeStatus(request._id, 'accepted')}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          className="btn btn-danger btn-small"
+                          onClick={() => handleExchangeStatus(request._id, 'rejected')}
+                        >
+                          Reject
+                        </button>
                       </div>
                     )}
                   </div>
