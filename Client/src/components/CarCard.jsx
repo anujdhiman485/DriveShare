@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { formatDistance } from '../utils/locationUtils';
+import { Fuel, Gauge, MapPin, Star, UserRound } from 'lucide-react';
 import './CarCard.css';
 
 const CarCard = ({ car, userLocation }) => {
@@ -15,16 +16,6 @@ const CarCard = ({ car, userLocation }) => {
   // Get default image if not provided
   const carImage = car.images?.[0] || `https://via.placeholder.com/300x200/667eea/ffffff?text=${encodeURIComponent(car.brand + ' ' + car.model)}`;
   
-  // Debug logging
-  if (!car.images || car.images.length === 0) {
-    console.log('⚠️ CarCard missing images:', {
-      brand: car.brand,
-      model: car.model,
-      images: car.images,
-      fallbackImage: carImage
-    });
-  }
-
   return (
     <div className="car-card" onClick={handleCardClick}>
       <div className="car-image">
@@ -55,7 +46,13 @@ const CarCard = ({ car, userLocation }) => {
 
       <div className="car-info">
         <h3 className="car-title">{car.brand} {car.model}</h3>
-        <p className="car-year">Year: {car.year}</p>
+        <p className="car-year">
+          <Gauge size={14} />
+          {car.year}
+          <span className="dot">•</span>
+          <Fuel size={14} />
+          {car.fuelType || 'N/A'}
+        </p>
         
         {(car.availableFor === 'rent' || car.availableFor === 'both') && (
           <p className="car-price">₹{car.pricePerDay}/day</p>
@@ -63,12 +60,13 @@ const CarCard = ({ car, userLocation }) => {
         
         <div className="car-details">
           <span className="car-location">
-            📍 {car.area ? `${car.area}, ` : ''}{car.location}
+            <MapPin size={14} />
+            {car.area ? `${car.area}, ` : ''}{car.location}
           </span>
-          <span className="car-rating">⭐ {car.rating?.toFixed(1) || '0.0'}</span>
+          <span className="car-rating"><Star size={14} /> {car.rating?.toFixed(1) || '0.0'}</span>
         </div>
 
-        <p className="car-owner">Owner: {ownerName}</p>
+        <p className="car-owner"><UserRound size={14} /> {ownerName}</p>
       </div>
     </div>
   );

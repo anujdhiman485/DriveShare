@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { carAPI, bookingAPI, exchangeAPI } from '../utils/apiService';
+import gsap from 'gsap';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -65,6 +66,14 @@ const Dashboard = () => {
       window.history.replaceState({}, document.title);
     }
   }, [navigate, fetchDashboardData, location.state?.showTab]);
+
+  useEffect(() => {
+    gsap.fromTo(
+      '.dashboard-header, .dashboard-tabs, .dashboard-content',
+      { y: 18, autoAlpha: 0 },
+      { y: 0, autoAlpha: 1, stagger: 0.1, duration: 0.44, ease: 'power2.out' }
+    );
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -214,8 +223,6 @@ const Dashboard = () => {
             </div>
 
             <div className="cars-list">
-              {console.log('🚗 myCars state:', myCars)}
-              {console.log('📊 myCars length:', myCars.length)}
               {myCars.length > 0 ? (
                 myCars.map(car => (
                   <div key={car._id} className="car-item">

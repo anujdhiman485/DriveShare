@@ -131,7 +131,10 @@ const BookingPage = () => {
         <div className="booking-summary">
           <h2>Booking Summary</h2>
           <div className="summary-car">
-            <img src={car.image} alt={`${car.brand} ${car.model}`} />
+            <img
+              src={car.images?.[0] || car.image || 'https://via.placeholder.com/300x200?text=Car+Image'}
+              alt={`${car.brand} ${car.model}`}
+            />
             <div>
               <h3>{car.brand} {car.model}</h3>
               <p>{car.year} • {car.location}</p>

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import CarCard from '../components/CarCard';
 import { carAPI } from '../utils/apiService';
+import { Search, LocateFixed, SlidersHorizontal, ArrowUpDown, MapPin } from 'lucide-react';
+import gsap from 'gsap';
 import { 
   getCurrentLocation, 
   calculateDistance, 
@@ -21,6 +23,14 @@ const CarListing = () => {
   const [maxDistance, setMaxDistance] = useState(200); // default 200km
   const [sortBy, setSortBy] = useState('distance'); // distance, price, rating
   const [locationError, setLocationError] = useState('');
+
+  useEffect(() => {
+    gsap.fromTo(
+      '.listing-header, .location-section, .listing-controls, .results-info',
+      { y: 16, autoAlpha: 0 },
+      { y: 0, autoAlpha: 1, stagger: 0.08, duration: 0.45, ease: 'power2.out' }
+    );
+  }, []);
 
   const detectUserLocation = useCallback(async () => {
     setLoading(true);
@@ -208,6 +218,15 @@ const CarListing = () => {
     return 0;
   });
 
+  useEffect(() => {
+    if (!sortedCars.length) return;
+    gsap.fromTo(
+      '.cars-grid .car-card',
+      { y: 16, autoAlpha: 0 },
+      { y: 0, autoAlpha: 1, stagger: 0.05, duration: 0.36, ease: 'power2.out' }
+    );
+  }, [sortedCars]);
+
   if (loading) {
     return <div className="loading">Loading cars...</div>;
   }
@@ -222,9 +241,9 @@ const CarListing = () => {
       {/* Location Section */}
       <div className="location-section">
         <div className="location-header">
-          <h3>📍 Search Location</h3>
+          <h3><MapPin size={18} /> Search Location</h3>
           <button className="btn-location" onClick={handleUseMyLocation}>
-            🎯 Use My Location
+            <LocateFixed size={16} /> Use My Location
           </button>
         </div>
 
@@ -288,6 +307,7 @@ const CarListing = () => {
 
       <div className="listing-controls">
         <div className="search-bar">
+          <Search size={17} />
           <input
             type="text"
             placeholder="Search by brand, model, area..."
@@ -298,6 +318,7 @@ const CarListing = () => {
 
         <div className="control-row">
           <div className="filter-buttons">
+            <span className="filter-title"><SlidersHorizontal size={15} /> Filters</span>
             <button
               className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
               onClick={() => setFilter('all')}
@@ -319,6 +340,7 @@ const CarListing = () => {
           </div>
 
           <div className="sort-section">
+            <ArrowUpDown size={15} />
             <label htmlFor="sortBy">Sort by:</label>
             <select
               id="sortBy"

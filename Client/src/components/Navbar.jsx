@@ -1,5 +1,7 @@
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { Menu, X, CarFront, LayoutDashboard, CirclePlus, LogIn, UserPlus } from 'lucide-react';
+import gsap from 'gsap';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -7,6 +9,7 @@ const Navbar = () => {
   const location = useLocation();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navRef = useRef(null);
 
   // Check authentication status
   const checkAuth = () => {
@@ -21,6 +24,27 @@ const Navbar = () => {
     // Check on route change
     checkAuth();
   }, [location]);
+
+  useLayoutEffect(() => {
+    if (!navRef.current) return;
+
+    gsap.fromTo(
+      navRef.current,
+      { y: -20, autoAlpha: 0 },
+      { y: 0, autoAlpha: 1, duration: 0.55, ease: 'power2.out' }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!mobileMenuOpen || !navRef.current) return;
+
+    const items = navRef.current.querySelectorAll('.nav-menu .nav-link, .nav-menu .nav-btn');
+    gsap.fromTo(
+      items,
+      { y: -8, autoAlpha: 0 },
+      { y: 0, autoAlpha: 1, stagger: 0.06, duration: 0.24, ease: 'power2.out' }
+    );
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     // Listen for storage changes (e.g., login/logout in another tab)
@@ -47,52 +71,57 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="navbar">
+    <nav ref={navRef} className="navbar">
       <div className="nav-container">
-        <Link to="/" className="nav-logo">
-          <span className="logo-icon">🚗</span>
+        <NavLink to="/" className="nav-logo" onClick={() => setMobileMenuOpen(false)}>
+          <span className="logo-icon"><CarFront size={20} /></span>
           <span>DriveShare</span>
-        </Link>
+        </NavLink>
 
         <button 
           className="mobile-menu-btn"
+          aria-label="Toggle mobile menu"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
-          {mobileMenuOpen ? '✕' : '☰'}
+          {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
         </button>
 
         <div className={`nav-menu ${mobileMenuOpen ? 'active' : ''}`}>
-          <Link to="/" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+          <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
             Home
-          </Link>
-          <Link to="/cars" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+          </NavLink>
+          <NavLink to="/cars" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
             Browse Cars
-          </Link>
+          </NavLink>
 
           {isLoggedIn ? (
             <>
-              <Link to="/dashboard" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+              <NavLink to="/dashboard" className={({ isActive }) => `nav-link nav-link-icon ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
+                <LayoutDashboard size={15} />
                 Dashboard
-              </Link>
-              <Link to="/add-car" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+              </NavLink>
+              <NavLink to="/add-car" className={({ isActive }) => `nav-link nav-link-icon ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
+                <CirclePlus size={15} />
                 List Car
-              </Link>
+              </NavLink>
               <button onClick={handleLogout} className="nav-btn btn-secondary">
                 Logout
               </button>
             </>
           ) : (
             <>
-              <Link to="/login" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+              <NavLink to="/login" className={({ isActive }) => `nav-link nav-link-icon ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
+                <LogIn size={15} />
                 Login
-              </Link>
-              <Link 
+              </NavLink>
+              <NavLink 
                 to="/register" 
                 className="nav-btn btn-primary"
                 onClick={() => setMobileMenuOpen(false)}
               >
+                <UserPlus size={15} />
                 Sign Up
-              </Link>
+              </NavLink>
             </>
           )}
         </div>

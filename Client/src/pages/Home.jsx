@@ -1,80 +1,132 @@
 import { Link } from 'react-router-dom';
+import { useLayoutEffect, useRef } from 'react';
+import { ShieldCheck, Wallet, Repeat, Search, MapPinned, CalendarCheck2, Sparkles } from 'lucide-react';
+import gsap from 'gsap';
 import './Home.css';
 
 const Home = () => {
+  const pageRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!pageRef.current) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        '.hero-kicker, .hero-content h1, .hero-copy, .hero-buttons, .hero-highlight-card',
+        { y: 28, autoAlpha: 0 },
+        { y: 0, autoAlpha: 1, stagger: 0.1, duration: 0.58, ease: 'power3.out' }
+      );
+
+      gsap.fromTo(
+        '.feature-card, .flow-step, .stat-pill',
+        { y: 22, autoAlpha: 0 },
+        {
+          y: 0,
+          autoAlpha: 1,
+          stagger: 0.08,
+          duration: 0.44,
+          ease: 'power2.out',
+          delay: 0.26
+        }
+      );
+    }, pageRef);
+
+    return () => ctx.revert();
+  }, []);
+
   return (
-    <div className="home">
-      {/* Hero Section */}
-      <section className="hero">
+    <div ref={pageRef} className="home">
+      <section className="home-hero">
         <div className="hero-content">
-          <h1>Share Your Car, Drive Your Dreams</h1>
-          <p>Rent cars from local owners or exchange your car with fellow enthusiasts</p>
+          <p className="hero-kicker">DriveShare Reimagined</p>
+          <h1>City rides with style, trust, and zero friction.</h1>
+          <p className="hero-copy">
+            Rent standout cars from nearby owners or swap keys with enthusiasts who match your taste.
+            Built for smooth booking, flexible exchanges, and quick handoffs.
+          </p>
           <div className="hero-buttons">
-            <Link to="/cars" className="btn btn-primary">Browse Cars</Link>
-            <Link to="/register" className="btn btn-secondary">List Your Car</Link>
+            <Link to="/cars" className="btn btn-primary">Explore Cars</Link>
+            <Link to="/register" className="btn btn-secondary">Become a Host</Link>
+          </div>
+          <div className="hero-stats">
+            <span className="stat-pill">Fast approvals</span>
+            <span className="stat-pill">Trusted owners</span>
+            <span className="stat-pill">Flexible exchanges</span>
+          </div>
+        </div>
+        <div className="hero-highlight-card">
+          <h3><Sparkles size={18} /> What feels different</h3>
+          <p>Smarter location matching, cleaner pricing, and confidence-first profiles.</p>
+          <ul>
+            <li><MapPinned size={15} /> Hyperlocal car discovery</li>
+            <li><CalendarCheck2 size={15} /> Transparent booking timeline</li>
+            <li><ShieldCheck size={15} /> Secure identity checks</li>
+          </ul>
+        </div>
+      </section>
+
+      <section className="home-features">
+        <div className="section-head">
+          <h2>Why Drivers Stay Here</h2>
+          <p>The platform balances value, convenience, and trust for both renters and owners.</p>
+        </div>
+        <div className="home-features-grid">
+          <div className="feature-card">
+            <div className="feature-icon"><Search size={22} /></div>
+            <h3>Precision Discovery</h3>
+            <p>Locate options by area, radius, and car type without endless scrolling.</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon"><Repeat size={22} /></div>
+            <h3>Easy Exchanges</h3>
+            <p>Swap vehicles with compatible owners using a single streamlined flow.</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon"><Wallet size={22} /></div>
+            <h3>Revenue for Hosts</h3>
+            <p>Turn idle days into earnings with transparent daily pricing.</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-icon"><ShieldCheck size={22} /></div>
+            <h3>Verified Community</h3>
+            <p>Profiles and requests are built around trust before keys are exchanged.</p>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="features">
-        <h2>Why Choose DriveShare?</h2>
-        <div className="features-grid">
-          <div className="feature-card">
-            <div className="feature-icon">🚗</div>
-            <h3>Rent a Car</h3>
-            <p>Find the perfect car for your needs from local owners at affordable prices</p>
-          </div>
-          <div className="feature-card">
-            <div className="feature-icon">🔄</div>
-            <h3>Exchange Cars</h3>
-            <p>Swap cars with other enthusiasts and experience different vehicles</p>
-          </div>
-          <div className="feature-card">
-            <div className="feature-icon">💰</div>
-            <h3>Earn Money</h3>
-            <p>List your car and earn passive income when you're not using it</p>
-          </div>
-          <div className="feature-card">
-            <div className="feature-icon">🛡️</div>
-            <h3>Secure & Safe</h3>
-            <p>Verified users and comprehensive insurance for peace of mind</p>
-          </div>
+      <section className="home-flow">
+        <div className="section-head">
+          <h2>How It Flows</h2>
+          <p>From signup to pickup in four clear moves.</p>
         </div>
-      </section>
-
-      {/* How It Works Section */}
-      <section className="how-it-works">
-        <h2>How It Works</h2>
-        <div className="steps">
-          <div className="step">
-            <div className="step-number">1</div>
+        <div className="flow-steps">
+          <div className="flow-step">
+            <div className="step-number">01</div>
             <h3>Sign Up</h3>
-            <p>Create your free account in minutes</p>
+            <p>Create your profile and verify your details.</p>
           </div>
-          <div className="step">
-            <div className="step-number">2</div>
-            <h3>List or Browse</h3>
-            <p>List your car or browse available vehicles</p>
+          <div className="flow-step">
+            <div className="step-number">02</div>
+            <h3>Browse or Host</h3>
+            <p>Find the right car or publish yours in minutes.</p>
           </div>
-          <div className="step">
-            <div className="step-number">3</div>
+          <div className="flow-step">
+            <div className="step-number">03</div>
             <h3>Connect</h3>
-            <p>Book a rental or request a car exchange</p>
+            <p>Send booking or exchange requests with clear timelines.</p>
           </div>
-          <div className="step">
-            <div className="step-number">4</div>
+          <div className="flow-step">
+            <div className="step-number">04</div>
             <h3>Drive</h3>
-            <p>Pick up the car and enjoy your ride</p>
+            <p>Finalize handoff and enjoy a smoother driving experience.</p>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="cta">
-        <h2>Ready to Get Started?</h2>
-        <p>Join thousands of car owners and renters today</p>
-        <Link to="/register" className="btn btn-primary btn-large">Get Started Now</Link>
+      <section className="home-cta">
+        <h2>Ready to level up your next ride?</h2>
+        <p>Join a network where every trip feels intentional, local, and easy.</p>
+        <Link to="/register" className="btn btn-primary btn-large">Start With DriveShare</Link>
       </section>
     </div>
   );
