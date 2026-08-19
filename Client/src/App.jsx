@@ -1,17 +1,18 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useLayoutEffect, useRef } from 'react';
 import gsap from 'gsap';
-import Navbar from './components/Navbar';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import CarListing from './pages/CarListing';
-import CarDetails from './pages/CarDetails';
-import BookingPage from './pages/BookingPage';
-import BookingConfirmation from './pages/BookingConfirmation';
-import Dashboard from './pages/Dashboard';
-import AddCar from './pages/AddCar';
-import './App.css';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import { Toaster } from '@/components/ui/sonner';
+import Home from '@/pages/Home';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import CarListing from '@/pages/CarListing';
+import CarDetails from '@/pages/CarDetails';
+import BookingPage from '@/pages/BookingPage';
+import BookingConfirmation from '@/pages/BookingConfirmation';
+import Dashboard from '@/pages/Dashboard';
+import AddCar from '@/pages/AddCar';
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -22,19 +23,13 @@ const AnimatedRoutes = () => {
 
     gsap.fromTo(
       routeRef.current,
-      { autoAlpha: 0, y: 18, filter: 'blur(8px)' },
-      {
-        autoAlpha: 1,
-        y: 0,
-        filter: 'blur(0px)',
-        duration: 0.55,
-        ease: 'power3.out'
-      }
+      { autoAlpha: 0, y: 12 },
+      { autoAlpha: 1, y: 0, duration: 0.4, ease: 'power2.out' }
     );
   }, [location.pathname]);
 
   return (
-    <main ref={routeRef} className="route-shell">
+    <main ref={routeRef} className="flex-1">
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
@@ -54,10 +49,11 @@ const AnimatedRoutes = () => {
 function App() {
   return (
     <Router>
-      <div className="app">
-        <div className="app-atmosphere" aria-hidden="true" />
+      <div className="flex min-h-screen flex-col">
         <Navbar />
         <AnimatedRoutes />
+        <Footer />
+        <Toaster />
       </div>
     </Router>
   );

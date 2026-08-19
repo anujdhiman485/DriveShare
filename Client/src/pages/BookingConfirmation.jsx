@@ -1,7 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
-import { bookingAPI, exchangeAPI } from '../utils/apiService';
-import './BookingConfirmation.css';
+import { bookingAPI, exchangeAPI } from '@/utils/apiService';
+import { carImageSrc, handleImageError } from '@/utils/carImage';
+import { statusBadgeVariant } from '@/utils/status';
+import { PageLoader, PageMessage } from '@/components/StateMessage';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Spinner } from '@/components/ui/spinner';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Alert, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Item, ItemContent, ItemDescription, ItemTitle } from '@/components/ui/item';
+import {
+  AlertCircleIcon,
+  CheckCircle2,
+  FileQuestion,
+  Lock,
+  Mail,
+  Phone,
+  Send,
+  XCircle
+} from 'lucide-react';
 
 const formatDate = (value) =>
   value
@@ -12,6 +33,13 @@ const formatDate = (value) =>
         year: 'numeric'
       })
     : '—';
+
+const DetailRow = ({ label, value }) => (
+  <div className="flex items-baseline justify-between gap-4 py-2.5">
+    <span className="text-sm text-muted-foreground">{label}</span>
+    <span className="text-right text-sm font-medium">{value}</span>
+  </div>
+);
 
 const BookingConfirmation = ({ kind = 'rent' }) => {
   const { id } = useParams();
@@ -79,18 +107,20 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
   };
 
   if (loading) {
-    return <div className="loading">Loading your booking...</div>;
+    return <PageLoader label="Loading your booking…" />;
   }
 
   if (!record) {
     return (
-      <div className="confirmation-page">
-        <div className="confirmation-card empty">
-          <h2>We couldn&apos;t find this request</h2>
-          <p>{error || 'It may have been removed, or you may not have access to it.'}</p>
-          <Link to="/dashboard" className="btn btn-primary">Go to Dashboard</Link>
-        </div>
-      </div>
+      <PageMessage
+        icon={FileQuestion}
+        title="We couldn't find this request"
+        description={error || 'It may have been removed, or you may not have access to it.'}
+      >
+        <Button asChild>
+          <Link to="/dashboard">Go to dashboard</Link>
+        </Button>
+      </PageMessage>
     );
   }
 
@@ -99,6 +129,9 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
   const reference = `DS-${String(record._id || id).slice(-8).toUpperCase()}`;
   const canCancel = !['completed', 'cancelled', 'rejected'].includes(status);
   const isLive = ['confirmed', 'accepted', 'ongoing'].includes(status);
+  const isNegative = status === 'cancelled' || status === 'rejected';
+  const carLabel = `${car?.brand || ''} ${car?.model || ''}`.trim();
+  const ownerName = record.owner?.fullName || 'Car owner';
 
   const headline = () => {
     if (status === 'cancelled') return 'This request was cancelled';
@@ -116,185 +149,277 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
     return `${record.owner?.fullName || 'The owner'} has been notified and will respond shortly.`;
   };
 
+  const HeroIcon = isNegative ? XCircle : isLive ? CheckCircle2 : Send;
+
+  const steps = [
+    {
+      title: 'Request sent',
+      copy: `The owner received your ${isExchange ? 'exchange request' : 'booking request'}.`,
+      state: status !== 'pending' ? 'done' : 'active'
+    },
+    {
+      title: 'Owner responds',
+      copy: "You'll see the updated status here and on your dashboard.",
+      state: isLive || status === 'completed' ? 'done' : status === 'pending' ? 'active' : 'idle'
+    },
+    {
+      title: isExchange ? 'Swap the cars' : 'Pick up the car',
+      copy: `Meet at ${record.pickupLocation || record.exchangeLocation || car?.location || 'the agreed location'} on ${formatDate(record.startDate)}.`,
+      state: status === 'completed' ? 'done' : isLive ? 'active' : 'idle'
+    }
+  ];
+
   return (
-    <div className="confirmation-page">
-      <div className={`confirmation-hero status-${status}`}>
-        <span className="hero-icon">
-          {status === 'cancelled' || status === 'rejected' ? '⚠️' : isLive ? '✅' : '📩'}
-        </span>
-        <h1>{headline()}</h1>
-        <p>{subline()}</p>
-        <div className="hero-meta">
-          <span className={`status-pill ${status}`}>{status}</span>
-          <span className="reference">Reference {reference}</span>
-        </div>
-      </div>
+    <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+      {/* ---------- Hero ---------- */}
+      <Card>
+        <CardContent className="flex flex-col items-center py-8 text-center">
+          <span className="flex size-12 items-center justify-center rounded-xl bg-muted">
+            <HeroIcon className="size-6" />
+          </span>
 
-      {error && <div className="error-message">{error}</div>}
+          <h1 className="font-heading mt-5 text-2xl font-semibold tracking-tight sm:text-3xl">
+            {headline()}
+          </h1>
+          <p className="mt-2 max-w-xl text-sm text-muted-foreground">{subline()}</p>
 
-      <div className="confirmation-grid">
-        <div className="confirmation-card">
-          <h2>{isExchange ? 'Car you requested' : 'Your car'}</h2>
-          <div className="confirmation-car">
-            <img
-              src={car?.images?.[0] || 'https://via.placeholder.com/300x200?text=Car+Image'}
-              alt={`${car?.brand || ''} ${car?.model || ''}`}
-              onError={(e) => {
-                e.target.src = 'https://via.placeholder.com/300x200?text=Car+Image';
-              }}
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+            <Badge variant={statusBadgeVariant(status)}>{status}</Badge>
+            <span className="font-mono text-xs text-muted-foreground">Ref {reference}</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {error && (
+        <Alert variant="destructive" className="mt-6">
+          <AlertCircleIcon />
+          <AlertTitle>{error}</AlertTitle>
+        </Alert>
+      )}
+
+      {/* ---------- Detail grid ---------- */}
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <Card className="[--card-spacing:--spacing(5)]">
+          <CardHeader>
+            <CardTitle className="text-sm text-muted-foreground">
+              {isExchange ? 'Car you requested' : 'Your car'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <div className="flex gap-4">
+              <img
+                src={carImageSrc(car)}
+                alt={carLabel}
+                onError={handleImageError(carLabel)}
+                className="h-24 w-32 shrink-0 rounded-lg object-cover"
+              />
+              <div className="min-w-0">
+                <p className="font-medium">{carLabel || 'Car'}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {car?.year} • {car?.location}
+                </p>
+                {car?._id && (
+                  <Button variant="link" size="sm" className="mt-1 h-auto px-0" asChild>
+                    <Link to={`/cars/${car._id}`}>View listing</Link>
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {isExchange && record.offeredCar && (
+              <Item variant="muted">
+                <ItemContent>
+                  <ItemDescription>Car you offered</ItemDescription>
+                  <ItemTitle>
+                    {record.offeredCar.brand} {record.offeredCar.model} ({record.offeredCar.year})
+                  </ItemTitle>
+                </ItemContent>
+              </Item>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="[--card-spacing:--spacing(5)]">
+          <CardHeader>
+            <CardTitle className="text-sm text-muted-foreground">
+              {isExchange ? 'Exchange details' : 'Trip details'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col">
+            <DetailRow
+              label={isExchange ? 'Exchange from' : 'Pick up'}
+              value={formatDate(record.startDate)}
             />
-            <div>
-              <h3>{car?.brand} {car?.model}</h3>
-              <p>{car?.year} • {car?.location}</p>
-              {car?._id && <Link to={`/cars/${car._id}`} className="inline-link">View listing</Link>}
-            </div>
-          </div>
+            <Separator />
+            <DetailRow
+              label={isExchange ? 'Return by' : 'Drop off'}
+              value={formatDate(record.endDate)}
+            />
+            <Separator />
+            <DetailRow
+              label="Duration"
+              value={`${record.totalDays} ${record.totalDays === 1 ? 'day' : 'days'}`}
+            />
+            <Separator />
+            <DetailRow
+              label="Location"
+              value={record.pickupLocation || record.exchangeLocation || car?.location || '—'}
+            />
+            <Separator />
+            <DetailRow label="Requested on" value={formatDate(record.createdAt)} />
 
-          {isExchange && record.offeredCar && (
-            <div className="exchange-offer">
-              <h3>Car you offered</h3>
-              <p>
-                {record.offeredCar.brand} {record.offeredCar.model} ({record.offeredCar.year})
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="confirmation-card">
-          <h2>{isExchange ? 'Exchange details' : 'Trip details'}</h2>
-          <div className="detail-row">
-            <span>{isExchange ? 'Exchange from' : 'Pick up'}</span>
-            <strong>{formatDate(record.startDate)}</strong>
-          </div>
-          <div className="detail-row">
-            <span>{isExchange ? 'Return by' : 'Drop off'}</span>
-            <strong>{formatDate(record.endDate)}</strong>
-          </div>
-          <div className="detail-row">
-            <span>Duration</span>
-            <strong>{record.totalDays} {record.totalDays === 1 ? 'day' : 'days'}</strong>
-          </div>
-          <div className="detail-row">
-            <span>Location</span>
-            <strong>{record.pickupLocation || record.exchangeLocation || car?.location || '—'}</strong>
-          </div>
-          <div className="detail-row">
-            <span>Requested on</span>
-            <strong>{formatDate(record.createdAt)}</strong>
-          </div>
-
-          {!isExchange && (
-            <div className="price-summary">
-              <div className="detail-row">
-                <span>₹{record.pricePerDay} × {record.totalDays} days</span>
-                <strong>₹{record.totalPrice}</strong>
+            {!isExchange && (
+              <div className="mt-4 rounded-lg bg-muted/50 p-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    ₹{record.pricePerDay} × {record.totalDays} days
+                  </span>
+                  <span>₹{record.totalPrice}</span>
+                </div>
+                <Separator className="my-3" />
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Total payable</span>
+                  <span className="font-heading text-xl font-semibold">₹{record.totalPrice}</span>
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Payment status: {record.paymentStatus || 'pending'} — pay the owner directly at
+                  pickup.
+                </p>
               </div>
-              <div className="detail-row total">
-                <span>Total payable</span>
-                <strong>₹{record.totalPrice}</strong>
+            )}
+
+            {record.message && (
+              <div className="mt-4">
+                <p className="text-xs text-muted-foreground">Your message</p>
+                <p className="mt-2 rounded-lg bg-muted/50 px-4 py-3 text-sm italic">
+                  “{record.message}”
+                </p>
               </div>
-              <p className="payment-note">
-                Payment status: <strong>{record.paymentStatus || 'pending'}</strong> — pay the owner
-                directly at pickup.
-              </p>
-            </div>
-          )}
+            )}
+          </CardContent>
+        </Card>
 
-          {record.message && (
-            <div className="your-message">
-              <span>Your message</span>
-              <p>{record.message}</p>
-            </div>
-          )}
-        </div>
+        <Card className="[--card-spacing:--spacing(5)]">
+          <CardHeader>
+            <CardTitle className="text-sm text-muted-foreground">Owner</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <Item className="px-0">
+              <Avatar className="size-10">
+                <AvatarImage src={record.owner?.avatar} alt={ownerName} />
+                <AvatarFallback>{ownerName.slice(0, 2).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <ItemContent>
+                <ItemTitle>{ownerName}</ItemTitle>
+                {record.owner?.rating != null && (
+                  <ItemDescription>⭐ {record.owner.rating}</ItemDescription>
+                )}
+              </ItemContent>
+            </Item>
 
-        <div className="confirmation-card">
-          <h2>Owner</h2>
-          <div className="owner-block">
-            <div className="owner-avatar">
-              {record.owner?.avatar ? (
-                <img src={record.owner.avatar} alt={record.owner.fullName} />
-              ) : (
-                '👤'
-              )}
-            </div>
-            <div>
-              <p className="owner-name">{record.owner?.fullName || 'Car Owner'}</p>
-              {record.owner?.rating != null && <p className="owner-rating">⭐ {record.owner.rating}</p>}
-            </div>
-          </div>
-          {isLive ? (
-            <div className="contact-details">
-              {record.owner?.phone && <p>📞 {record.owner.phone}</p>}
-              {record.owner?.email && <p>✉️ {record.owner.email}</p>}
-            </div>
-          ) : (
-            <p className="contact-locked">
-              Contact details unlock once the owner accepts your request.
-            </p>
-          )}
-        </div>
+            {isLive ? (
+              <div className="flex flex-col gap-2">
+                {record.owner?.phone && (
+                  <Button variant="outline" className="justify-start" asChild>
+                    <a href={`tel:${record.owner.phone}`}>
+                      <Phone data-icon="inline-start" />
+                      {record.owner.phone}
+                    </a>
+                  </Button>
+                )}
+                {record.owner?.email && (
+                  <Button variant="outline" className="justify-start" asChild>
+                    <a href={`mailto:${record.owner.email}`}>
+                      <Mail data-icon="inline-start" />
+                      {record.owner.email}
+                    </a>
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Alert>
+                <Lock />
+                <AlertTitle>
+                  Contact details unlock once the owner accepts your request.
+                </AlertTitle>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
 
-        <div className="confirmation-card">
-          <h2>What happens next</h2>
-          <ol className="next-steps">
-            <li className={status !== 'pending' ? 'done' : 'active'}>
-              <strong>Request sent</strong>
-              <span>The owner received your {isExchange ? 'exchange request' : 'booking request'}.</span>
-            </li>
-            <li className={isLive || status === 'completed' ? 'done' : status === 'pending' ? 'active' : ''}>
-              <strong>Owner responds</strong>
-              <span>You&apos;ll see the updated status here and on your dashboard.</span>
-            </li>
-            <li className={status === 'completed' ? 'done' : isLive ? 'active' : ''}>
-              <strong>{isExchange ? 'Swap the cars' : 'Pick up the car'}</strong>
-              <span>
-                Meet at {record.pickupLocation || record.exchangeLocation || car?.location || 'the agreed location'} on{' '}
-                {formatDate(record.startDate)}.
-              </span>
-            </li>
-          </ol>
-        </div>
+        <Card className="[--card-spacing:--spacing(5)]">
+          <CardHeader>
+            <CardTitle className="text-sm text-muted-foreground">What happens next</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ol className="flex flex-col gap-5">
+              {steps.map(({ title, copy, state }, index) => (
+                <li key={title} className="flex gap-3.5">
+                  <span
+                    className={
+                      state === 'done'
+                        ? 'flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground'
+                        : state === 'active'
+                          ? 'flex size-6 shrink-0 items-center justify-center rounded-full border-2 border-primary text-xs font-medium'
+                          : 'flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground'
+                    }
+                  >
+                    {state === 'done' ? <CheckCircle2 className="size-3.5" /> : index + 1}
+                  </span>
+                  <span className={state === 'idle' ? 'opacity-60' : undefined}>
+                    <span className="block font-medium">{title}</span>
+                    <span className="mt-0.5 block text-sm text-muted-foreground">{copy}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="confirmation-actions">
-        <Link
-          to="/dashboard"
-          state={{ showTab: 'myBookings' }}
-          className="btn btn-primary"
-        >
-          Go to Dashboard
-        </Link>
-        <Link to="/cars" className="btn btn-secondary">Browse more cars</Link>
+      {/* ---------- Actions ---------- */}
+      <div className="mt-8 flex flex-wrap gap-3">
+        <Button asChild>
+          <Link to="/dashboard" state={{ showTab: 'myBookings' }}>Go to dashboard</Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link to="/cars">Browse more cars</Link>
+        </Button>
         {canCancel && !showCancel && (
-          <button className="btn btn-danger" onClick={() => setShowCancel(true)}>
+          <Button variant="ghost" onClick={() => setShowCancel(true)}>
             Cancel request
-          </button>
+          </Button>
         )}
       </div>
 
       {showCancel && (
-        <div className="cancel-panel">
-          <h3>Cancel this {isExchange ? 'exchange request' : 'booking'}?</h3>
-          <p>The owner will be notified. This can&apos;t be undone.</p>
-          <textarea
-            value={cancelReason}
-            onChange={(e) => setCancelReason(e.target.value)}
-            placeholder="Reason (optional)"
-          />
-          <div className="cancel-actions">
-            <button className="btn btn-danger" onClick={handleCancel} disabled={cancelling}>
-              {cancelling ? 'Cancelling...' : 'Yes, cancel it'}
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={() => setShowCancel(false)}
-              disabled={cancelling}
-            >
-              Keep it
-            </button>
-          </div>
-        </div>
+        <Card className="mt-5 [--card-spacing:--spacing(5)]">
+          <CardHeader>
+            <CardTitle>Cancel this {isExchange ? 'exchange request' : 'booking'}?</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">
+              The owner will be notified. This can&apos;t be undone.
+            </p>
+
+            <Textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Reason (optional)"
+              className="min-h-24"
+            />
+
+            <div className="flex flex-wrap gap-3">
+              <Button variant="destructive" onClick={handleCancel} disabled={cancelling}>
+                {cancelling && <Spinner data-icon="inline-start" />}
+                {cancelling ? 'Cancelling…' : 'Yes, cancel it'}
+              </Button>
+              <Button variant="outline" onClick={() => setShowCancel(false)} disabled={cancelling}>
+                Keep it
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

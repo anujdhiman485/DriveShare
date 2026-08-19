@@ -23,7 +23,22 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Uppercase identifiers are React components rendered in JSX. Without
+      // eslint-plugin-react, JSX usage doesn't count as a reference, so ignore
+      // them as both variables (imports) and arguments (destructured props).
+      'no-unused-vars': [
+        'error',
+        { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^[A-Z_]' },
+      ],
+    },
+  },
+  {
+    // shadcn/ui components are generated source. They intentionally export a
+    // component plus its `cva` variants object from the same file, which trips
+    // the fast-refresh rule.
+    files: ['src/components/ui/**/*.{js,jsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 ])

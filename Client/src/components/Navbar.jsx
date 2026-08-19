@@ -1,132 +1,168 @@
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { Menu, X, CarFront, LayoutDashboard, CirclePlus, LogIn, UserPlus } from 'lucide-react';
-import gsap from 'gsap';
-import './Navbar.css';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useSyncExternalStore } from 'react';
+import { Menu, X, CarFront, LayoutDashboard, CirclePlus, LogIn, UserPlus, LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import ThemeToggle from './ThemeToggle';
+
+/* Auth lives in localStorage — an external store. `authChange` covers same-tab
+   writes, `storage` covers login/logout in another tab. */
+const subscribeToAuth = (onChange) => {
+  window.addEventListener('storage', onChange);
+  window.addEventListener('authChange', onChange);
+
+  return () => {
+    window.removeEventListener('storage', onChange);
+    window.removeEventListener('authChange', onChange);
+  };
+};
+
+const getAuthSnapshot = () => !!localStorage.getItem('token');
+
+const navLinkClass = ({ isActive }) =>
+  cn(
+    'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+    isActive ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+  );
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const isLoggedIn = useSyncExternalStore(subscribeToAuth, getAuthSnapshot);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const navRef = useRef(null);
-
-  // Check authentication status
-  const checkAuth = () => {
-    const token = localStorage.getItem('token');
-    setIsLoggedIn(!!token);
-  };
 
   useEffect(() => {
-    // Check on mount
-    checkAuth();
-
-    // Check on route change
-    checkAuth();
-  }, [location]);
-
-  useLayoutEffect(() => {
-    if (!navRef.current) return;
-
-    gsap.fromTo(
-      navRef.current,
-      { y: -20, autoAlpha: 0 },
-      { y: 0, autoAlpha: 1, duration: 0.55, ease: 'power2.out' }
-    );
-  }, []);
-
-  useEffect(() => {
-    if (!mobileMenuOpen || !navRef.current) return;
-
-    const items = navRef.current.querySelectorAll('.nav-menu .nav-link, .nav-menu .nav-btn');
-    gsap.fromTo(
-      items,
-      { y: -8, autoAlpha: 0 },
-      { y: 0, autoAlpha: 1, stagger: 0.06, duration: 0.24, ease: 'power2.out' }
-    );
-  }, [mobileMenuOpen]);
-
-  useEffect(() => {
-    // Listen for storage changes (e.g., login/logout in another tab)
-    const handleStorageChange = () => {
-      checkAuth();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Custom event for same-tab updates
-    window.addEventListener('authChange', handleStorageChange);
-
+    // Lock body scroll while the mobile sheet is open.
+    if (!mobileMenuOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('authChange', handleStorageChange);
+      document.body.style.overflow = previous;
     };
-  }, []);
+  }, [mobileMenuOpen]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    setIsLoggedIn(false);
+    window.dispatchEvent(new Event('authChange'));
+    setMobileMenuOpen(false);
     navigate('/');
   };
 
   return (
-    <nav ref={navRef} className="navbar">
-      <div className="nav-container">
-        <NavLink to="/" className="nav-logo" onClick={() => setMobileMenuOpen(false)}>
-          <span className="logo-icon"><CarFront size={20} /></span>
-          <span>DriveShare</span>
+    <header className="sticky top-0 z-50 border-b bg-background/85 backdrop-blur-md">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
+        <NavLink to="/" className="inline-flex items-center gap-2.5 text-base font-semibold tracking-tight">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <CarFront className="size-4" />
+          </span>
+          DriveShare
         </NavLink>
 
-        <button 
-          className="mobile-menu-btn"
-          aria-label="Toggle mobile menu"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
-        </button>
+        <nav className="hidden items-center gap-1 md:flex">
+          <NavLink to="/" className={navLinkClass}>Home</NavLink>
+          <NavLink to="/cars" className={navLinkClass}>Browse Cars</NavLink>
 
-        <div className={`nav-menu ${mobileMenuOpen ? 'active' : ''}`}>
-          <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
-            Home
-          </NavLink>
-          <NavLink to="/cars" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
-            Browse Cars
-          </NavLink>
-
-          {isLoggedIn ? (
+          {isLoggedIn && (
             <>
-              <NavLink to="/dashboard" className={({ isActive }) => `nav-link nav-link-icon ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
-                <LayoutDashboard size={15} />
+              <NavLink to="/dashboard" className={navLinkClass}>
+                <LayoutDashboard className="size-4" />
                 Dashboard
               </NavLink>
-              <NavLink to="/add-car" className={({ isActive }) => `nav-link nav-link-icon ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
-                <CirclePlus size={15} />
+              <NavLink to="/add-car" className={navLinkClass}>
+                <CirclePlus className="size-4" />
                 List Car
-              </NavLink>
-              <button onClick={handleLogout} className="nav-btn btn-secondary">
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <NavLink to="/login" className={({ isActive }) => `nav-link nav-link-icon ${isActive ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)}>
-                <LogIn size={15} />
-                Login
-              </NavLink>
-              <NavLink 
-                to="/register" 
-                className="nav-btn btn-primary"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <UserPlus size={15} />
-                Sign Up
               </NavLink>
             </>
           )}
+        </nav>
+
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+
+          <div className="hidden items-center gap-2 md:flex">
+            {isLoggedIn ? (
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                <LogOut data-icon="inline-start" />
+                Logout
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <NavLink to="/login">
+                    <LogIn data-icon="inline-start" />
+                    Login
+                  </NavLink>
+                </Button>
+                <Button size="sm" asChild>
+                  <NavLink to="/register">
+                    <UserPlus data-icon="inline-start" />
+                    Sign Up
+                  </NavLink>
+                </Button>
+              </>
+            )}
+          </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            aria-label="Toggle mobile menu"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X /> : <Menu />}
+          </Button>
         </div>
       </div>
-    </nav>
+
+      {mobileMenuOpen && (
+        <div
+          className="flex flex-col gap-1 border-t bg-background px-5 py-4 md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <NavLink to="/" className={navLinkClass}>Home</NavLink>
+          <NavLink to="/cars" className={navLinkClass}>Browse Cars</NavLink>
+
+          {isLoggedIn ? (
+            <>
+              <NavLink to="/dashboard" className={navLinkClass}>
+                <LayoutDashboard className="size-4" />
+                Dashboard
+              </NavLink>
+              <NavLink to="/add-car" className={navLinkClass}>
+                <CirclePlus className="size-4" />
+                List Car
+              </NavLink>
+              <Separator className="my-2" />
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut data-icon="inline-start" />
+                Logout
+              </Button>
+            </>
+          ) : (
+            <>
+              <Separator className="my-2" />
+              <div className="flex flex-col gap-2">
+                <Button variant="outline" asChild>
+                  <NavLink to="/login">
+                    <LogIn data-icon="inline-start" />
+                    Login
+                  </NavLink>
+                </Button>
+                <Button asChild>
+                  <NavLink to="/register">
+                    <UserPlus data-icon="inline-start" />
+                    Sign Up
+                  </NavLink>
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </header>
   );
 };
 

@@ -1,16 +1,47 @@
 import { useState, useEffect, useCallback } from 'react';
-import CarCard from '../components/CarCard';
-import { carAPI } from '../utils/apiService';
-import { Search, LocateFixed, SlidersHorizontal, ArrowUpDown, MapPin } from 'lucide-react';
+import CarCard from '@/components/CarCard';
+import { CarCardSkeleton, EmptyState } from '@/components/StateMessage';
+import { carAPI } from '@/utils/apiService';
+import {
+  Search,
+  LocateFixed,
+  ArrowUpDown,
+  MapPin,
+  AlertCircleIcon,
+  CarFront,
+  CheckCircle2Icon
+} from 'lucide-react';
 import gsap from 'gsap';
-import { 
-  getCurrentLocation, 
-  calculateDistance, 
-  indianCities, 
+import {
+  getCurrentLocation,
+  calculateDistance,
+  indianCities,
   getCityByName,
   findNearestCities
-} from '../utils/locationUtils';
-import './CarListing.css';
+} from '@/utils/locationUtils';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardAction } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Slider } from '@/components/ui/slider';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Field, FieldLabel } from '@/components/ui/field';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+
+const filters = [
+  { value: 'all', label: 'All Cars' },
+  { value: 'rent', label: 'For Rent' },
+  { value: 'exchange', label: 'For Exchange' }
+];
+
+const ALL_CITIES = '__all__';
 
 const CarListing = () => {
   const [cars, setCars] = useState([]);
@@ -26,9 +57,9 @@ const CarListing = () => {
 
   useEffect(() => {
     gsap.fromTo(
-      '.listing-header, .location-section, .listing-controls, .results-info',
-      { y: 16, autoAlpha: 0 },
-      { y: 0, autoAlpha: 1, stagger: 0.08, duration: 0.45, ease: 'power2.out' }
+      '[data-listing-reveal]',
+      { y: 12, autoAlpha: 0 },
+      { y: 0, autoAlpha: 1, stagger: 0.06, duration: 0.4, ease: 'power2.out' }
     );
   }, []);
 
@@ -38,15 +69,15 @@ const CarListing = () => {
       const location = await getCurrentLocation();
       setUserLocation(location);
       setSelectedCity(null); // Clear city selection when using live location
-      setLocationError('');      
+      setLocationError('');
       // Find nearest city
       const nearestCities = findNearestCities(location.latitude, location.longitude, 200, 1);
       if (nearestCities.length > 0) {
         setNearestCity(nearestCities[0]);
-        console.log('📍 Nearest city:', nearestCities[0].name, `(${nearestCities[0].distance}km away)`);
       } else {
         setNearestCity(null);
-      }    } catch (error) {
+      }
+    } catch (error) {
       console.error('Error getting location:', error);
       setLocationError('Unable to get your location. Please try again or select a city manually.');
     } finally {
@@ -57,64 +88,47 @@ const CarListing = () => {
   const fetchCars = useCallback(async () => {
     setLoading(true);
     try {
-      console.log('🔍 Fetching cars from API...');
-      
       // Build query parameters
       const params = {};
-      
+
       // If "All Cities" is selected (empty string), don't add any location filter
       if (selectedCity === '') {
-        console.log('🌍 Fetching ALL cars (no location filter)');
         // Don't add any location parameters
       }
       // If city is manually selected, use city-based search (shows ALL cars in that city)
       else if (selectedCity) {
         params.city = selectedCity;
-        console.log('🏙️ Using city-based search:', selectedCity);
       }
       // Otherwise, use live location with radius search
       else if (userLocation) {
         params.lat = userLocation.latitude;
         params.lon = userLocation.longitude;
         params.maxDistance = maxDistance;
-        console.log('📍 Using live location within', maxDistance, 'km');
       }
-      // No location available and no city selected - still fetch all cars
-      else {
-        console.log('🌍 No location specified - fetching all cars');
-      }
-      
+
       // Add filter
       if (filter !== 'all') {
         params.availableFor = filter;
       }
-      
+
       // Add search term
       if (searchTerm) {
         params.search = searchTerm;
       }
-      
+
       // Add sort
       params.sortBy = sortBy;
-      
-      console.log('📡 API params:', params);
-      
+
       const response = await carAPI.getAllCars(params);
-      console.log('✅ Cars response:', response);
-      
+
       if (response.success) {
         const fetchedCars = response.data.cars || [];
-        console.log('🖼️ Sample car images:', fetchedCars.slice(0, 2).map(c => ({
-          brand: c.brand,
-          model: c.model,
-          images: c.images
-        })));
-        
+
         // Add distance calculation for client-side display
         const carsWithDistance = fetchedCars.map(car => {
           if (car.coordinates?.coordinates) {
             const [lon, lat] = car.coordinates.coordinates; // MongoDB stores as [lon, lat]
-            
+
             // Calculate distance from user's live location
             if (userLocation && !selectedCity) {
               const distance = calculateDistance(
@@ -129,30 +143,20 @@ const CarListing = () => {
             else if (selectedCity) {
               const city = getCityByName(selectedCity);
               if (city) {
-                const distance = calculateDistance(
-                  city.lat,
-                  city.lon,
-                  lat,
-                  lon
-                );
+                const distance = calculateDistance(city.lat, city.lon, lat, lon);
                 return { ...car, distance };
               }
             }
           }
           return car;
         });
-        
-        if (selectedCity) {
-          console.log(`📦 Found ${carsWithDistance.length} cars in ${selectedCity}`);
-        } else {
-          console.log(`📦 Found ${carsWithDistance.length} cars within ${maxDistance}km`);
-        }
+
         setCars(carsWithDistance);
       } else {
         console.error('❌ Failed to fetch cars:', response.message);
         setCars([]);
       }
-      
+
       setLoading(false);
     } catch (error) {
       console.error('❌ Error fetching cars:', error);
@@ -162,14 +166,12 @@ const CarListing = () => {
   }, [userLocation, selectedCity, maxDistance, filter, searchTerm, sortBy]);
 
   useEffect(() => {
-    // Don't auto-detect location on mount
-    // User needs to click "Use My Location" button
-    // By default, fetch all cars
+    // Don't auto-detect location on mount — the user opts in with the button.
     fetchCars();
   }, [fetchCars]);
 
   const handleCitySelect = (cityName) => {
-    setSelectedCity(cityName);
+    setSelectedCity(cityName === ALL_CITIES ? '' : cityName);
     setUserLocation(null); // Clear live location when selecting a city
     setNearestCity(null); // Clear nearest city
   };
@@ -181,16 +183,16 @@ const CarListing = () => {
 
   const filteredCars = cars.filter(car => {
     // Filter by availability type
-    const matchesFilter = filter === 'all' || 
-                         car.availableFor === filter || 
+    const matchesFilter = filter === 'all' ||
+                         car.availableFor === filter ||
                          car.availableFor === 'both';
-    
+
     // Filter by search term
     const matchesSearch = car.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          car.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (car.area && car.area.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+
     // Filter by distance (if user location is available)
     let matchesDistance = true;
     if (userLocation && car.distance !== undefined) {
@@ -221,194 +223,204 @@ const CarListing = () => {
   useEffect(() => {
     if (!sortedCars.length) return;
     gsap.fromTo(
-      '.cars-grid .car-card',
-      { y: 16, autoAlpha: 0 },
-      { y: 0, autoAlpha: 1, stagger: 0.05, duration: 0.36, ease: 'power2.out' }
+      '[data-car-grid] > *',
+      { y: 12, autoAlpha: 0 },
+      { y: 0, autoAlpha: 1, stagger: 0.04, duration: 0.32, ease: 'power2.out' }
     );
   }, [sortedCars]);
 
-  if (loading) {
-    return <div className="loading">Loading cars...</div>;
-  }
+  const scopeLabel =
+    selectedCity === ''
+      ? 'from all cities'
+      : selectedCity
+        ? `in ${selectedCity}`
+        : `within ${maxDistance}km of your location`;
 
   return (
-    <div className="car-listing">
-      <div className="listing-header">
-        <h1>Browse Available Cars</h1>
-        <p>Find your perfect ride or exchange cars with enthusiasts</p>
-      </div>
+    <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+      <header data-listing-reveal>
+        <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
+          Browse available cars
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          Find your perfect ride or exchange cars with fellow enthusiasts.
+        </p>
+      </header>
 
-      {/* Location Section */}
-      <div className="location-section">
-        <div className="location-header">
-          <h3><MapPin size={18} /> Search Location</h3>
-          <button className="btn-location" onClick={handleUseMyLocation}>
-            <LocateFixed size={16} /> Use My Location
-          </button>
-        </div>
+      {/* ---------- Location panel ---------- */}
+      <Card data-listing-reveal className="mt-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="size-4" />
+            Search location
+          </CardTitle>
+          <CardAction>
+            <Button variant="outline" size="sm" onClick={handleUseMyLocation}>
+              <LocateFixed data-icon="inline-start" />
+              Use my location
+            </Button>
+          </CardAction>
+        </CardHeader>
 
-        {locationError && (
-          <div className="location-error">{locationError}</div>
-        )}
+        <CardContent className="flex flex-col gap-5">
+          {locationError && (
+            <Alert variant="destructive">
+              <AlertCircleIcon />
+              <AlertTitle>{locationError}</AlertTitle>
+            </Alert>
+          )}
 
-        {userLocation && selectedCity === null && (
-          <div className="location-info">
-            <span className="location-badge">
-              ✓ Using your current location
-              {nearestCity && (
-                <span> near <strong>{nearestCity.name}, {nearestCity.state}</strong> ({Math.round(nearestCity.distance)}km away)</span>
-              )}
-            </span>
-            <div style={{ fontSize: '0.85em', marginTop: '5px', color: '#666' }}>
-              📍 {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
-            </div>
+          {userLocation && selectedCity === null && (
+            <Alert>
+              <CheckCircle2Icon />
+              <AlertTitle>
+                Using your current location
+                {nearestCity && ` near ${nearestCity.name}, ${nearestCity.state}`}
+              </AlertTitle>
+              <AlertDescription>
+                {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+                {nearestCity && ` — ${Math.round(nearestCity.distance)}km away`}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="citySelect">Select a city</FieldLabel>
+              <Select
+                value={selectedCity === null || selectedCity === '' ? ALL_CITIES : selectedCity}
+                onValueChange={handleCitySelect}
+              >
+                <SelectTrigger id="citySelect" className="w-full">
+                  <SelectValue placeholder="All cities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value={ALL_CITIES}>All cities (default)</SelectItem>
+                    {indianCities.map(city => (
+                      <SelectItem key={city.name} value={city.name}>
+                        {city.name}, {city.state}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+
+            {(userLocation || selectedCity) && (
+              <Field>
+                <FieldLabel htmlFor="distanceRange">
+                  Search radius — {maxDistance}km
+                </FieldLabel>
+                <Slider
+                  id="distanceRange"
+                  min={5}
+                  max={200}
+                  step={5}
+                  value={[maxDistance]}
+                  onValueChange={([value]) => setMaxDistance(value)}
+                  className="mt-2"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>5km</span>
+                  <span>200km</span>
+                </div>
+              </Field>
+            )}
           </div>
-        )}
+        </CardContent>
+      </Card>
 
-        <div className="city-selector">
-          <label htmlFor="citySelect">Select a city:</label>
-          <select
-            id="citySelect"
-            value={selectedCity === null ? '' : selectedCity}
-            onChange={(e) => handleCitySelect(e.target.value)}
-            className="city-dropdown"
-          >
-            <option value="">All Cities (Default)</option>
-            {indianCities.map(city => (
-              <option key={city.name} value={city.name}>
-                {city.name}, {city.state}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {(userLocation || selectedCity) && (
-          <div className="distance-filter">
-            <label htmlFor="distanceRange">
-              Search radius: <strong>{maxDistance}km</strong>
-            </label>
-            <input
-              type="range"
-              id="distanceRange"
-              min="5"
-              max="200"
-              step="5"
-              value={maxDistance}
-              onChange={(e) => setMaxDistance(Number(e.target.value))}
-              className="distance-slider"
-            />
-            <div className="distance-labels">
-              <span>5km</span>
-              <span>200km</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="listing-controls">
-        <div className="search-bar">
-          <Search size={17} />
-          <input
+      {/* ---------- Search + filters ---------- */}
+      <div data-listing-reveal className="mt-6 flex flex-col gap-4">
+        <InputGroup className="h-10">
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
             type="text"
-            placeholder="Search by brand, model, area..."
+            placeholder="Search by brand, model, area…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-        </div>
+        </InputGroup>
 
-        <div className="control-row">
-          <div className="filter-buttons">
-            <span className="filter-title"><SlidersHorizontal size={15} /> Filters</span>
-            <button
-              className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
-              onClick={() => setFilter('all')}
-            >
-              All Cars
-            </button>
-            <button
-              className={`filter-btn ${filter === 'rent' ? 'active' : ''}`}
-              onClick={() => setFilter('rent')}
-            >
-              For Rent
-            </button>
-            <button
-              className={`filter-btn ${filter === 'exchange' ? 'active' : ''}`}
-              onClick={() => setFilter('exchange')}
-            >
-              For Exchange
-            </button>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            value={filter}
+            onValueChange={(value) => value && setFilter(value)}
+          >
+            {filters.map(({ value, label }) => (
+              <ToggleGroupItem key={value} value={value}>
+                {label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
 
-          <div className="sort-section">
-            <ArrowUpDown size={15} />
-            <label htmlFor="sortBy">Sort by:</label>
-            <select
-              id="sortBy"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="sort-dropdown"
-            >
-              {userLocation && <option value="distance">Nearest First</option>}
-              <option value="price">Price: Low to High</option>
-              <option value="rating">Highest Rated</option>
-            </select>
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="size-4 text-muted-foreground" />
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger size="sm" aria-label="Sort by">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {userLocation && <SelectItem value="distance">Nearest first</SelectItem>}
+                  <SelectItem value="price">Price: low to high</SelectItem>
+                  <SelectItem value="rating">Highest rated</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
 
-      {(userLocation || selectedCity !== undefined) && (
-        <div className="results-info">
-          {sortedCars.length > 0 ? (
-            <>
-              Found <strong>{sortedCars.length}</strong> cars
-              {selectedCity === '' ? (
-                <> from all cities</>
-              ) : selectedCity ? (
-                <> in <strong>{selectedCity}</strong></>
-              ) : (
-                <> within <strong>{maxDistance}km</strong> of your location</>
-              )}
-            </>
-          ) : (
-            <p>
-              {selectedCity === ''
-                ? 'Searching for cars in all cities...'
-                : selectedCity 
-                  ? `Searching for cars in ${selectedCity}...`
-                  : `Searching for cars within ${maxDistance}km...`
-              }
-            </p>
-          )}
+      {/* ---------- Results ---------- */}
+      <p className="mt-6 text-sm text-muted-foreground">
+        {loading ? (
+          'Searching…'
+        ) : (
+          <>
+            <span className="font-medium text-foreground">{sortedCars.length}</span>{' '}
+            {sortedCars.length === 1 ? 'car' : 'cars'} {scopeLabel}
+          </>
+        )}
+      </p>
+
+      <div data-car-grid className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {loading
+          ? Array.from({ length: 6 }, (_, i) => <CarCardSkeleton key={i} />)
+          : sortedCars.map(car => (
+              <CarCard key={car._id || car.id} car={car} userLocation={userLocation} />
+            ))}
+      </div>
+
+      {!loading && sortedCars.length === 0 && (
+        <div className="mt-5">
+          <EmptyState
+            icon={CarFront}
+            title="No cars found"
+            description={
+              selectedCity === ''
+                ? 'There are no cars available right now. Check back soon.'
+                : selectedCity
+                  ? `Nothing listed in ${selectedCity} yet — try another city or widen your search.`
+                  : `Nothing within ${maxDistance}km of your location.`
+            }
+          >
+            {!selectedCity && selectedCity !== '' && maxDistance < 200 && (
+              <Button
+                variant="outline"
+                onClick={() => setMaxDistance(Math.min(maxDistance + 50, 200))}
+              >
+                Expand to {Math.min(maxDistance + 50, 200)}km
+              </Button>
+            )}
+          </EmptyState>
         </div>
       )}
-
-      <div className="cars-grid">
-        {loading ? (
-          <div className="loading-message">
-            <p>Loading cars...</p>
-          </div>
-        ) : sortedCars.length > 0 ? (
-          sortedCars.map(car => (
-            <CarCard key={car._id || car.id} car={car} userLocation={userLocation} />
-          ))
-        ) : (
-          <div className="no-results">
-            <p>
-              {selectedCity === ''
-                ? 'No cars available at the moment'
-                : selectedCity 
-                  ? `No cars found in ${selectedCity}`
-                  : `No cars found within ${maxDistance}km of your location`
-              }
-            </p>
-            {!selectedCity && selectedCity !== '' && maxDistance < 200 && (
-              <button className="btn-secondary" onClick={() => setMaxDistance(Math.min(maxDistance + 50, 200))}>
-                Expand search area to {Math.min(maxDistance + 50, 200)}km
-              </button>
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 };

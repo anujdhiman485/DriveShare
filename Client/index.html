@@ -4,7 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>drive-share</title>
+    <meta name="description" content="Rent standout cars from nearby owners, or swap keys with fellow enthusiasts." />
+    <title>DriveShare — Rent & exchange cars nearby</title>
+    <script>
+      // Apply the stored theme before first paint so there's no light/dark flash.
+      (function () {
+        try {
+          var stored = localStorage.getItem('driveshare-theme');
+          var prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+          var theme = stored === 'light' || stored === 'dark' ? stored : prefersLight ? 'light' : 'dark';
+          if (theme === 'dark') document.documentElement.classList.add('dark');
+        } catch (e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

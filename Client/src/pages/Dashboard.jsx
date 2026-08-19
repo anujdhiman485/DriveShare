@@ -1,13 +1,50 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { carAPI, bookingAPI, exchangeAPI } from '../utils/apiService';
+import { toast } from 'sonner';
+import { carAPI, bookingAPI, exchangeAPI } from '@/utils/apiService';
+import { statusBadgeVariant } from '@/utils/status';
+import { EmptyState } from '@/components/StateMessage';
 import gsap from 'gsap';
-import './Dashboard.css';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle
+} from '@/components/ui/item';
+import {
+  ArrowRight,
+  CalendarRange,
+  CarFront,
+  Check,
+  CirclePlus,
+  Inbox,
+  LogOut,
+  Repeat,
+  RefreshCw,
+  Search,
+  X
+} from 'lucide-react';
+
+const tabs = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'myCars', label: 'My Cars' },
+  { id: 'myBookings', label: 'My Bookings' },
+  { id: 'receivedBookings', label: 'Received' },
+  { id: 'exchanges', label: 'Exchanges' }
+];
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('overview');
+  const [refreshing, setRefreshing] = useState(false);
   const [myCars, setMyCars] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
   const [receivedBookings, setReceivedBookings] = useState([]);
@@ -15,45 +52,27 @@ const Dashboard = () => {
   const [myExchanges, setMyExchanges] = useState([]);
 
   const fetchDashboardData = useCallback(async () => {
-    console.log('🔄 Fetching dashboard data...');
+    setRefreshing(true);
     try {
-      // Fetch user's cars
-      console.log('📡 Calling carAPI.getMyCars()...');
       const carsResponse = await carAPI.getMyCars();
-      console.log('🚗 Cars Response:', carsResponse);
-      if (carsResponse.success) {
-        console.log('✅ Cars data:', carsResponse.data);
-        setMyCars(carsResponse.data || []);
-      } else {
-        console.log('❌ Cars fetch failed:', carsResponse);
-      }
+      if (carsResponse.success) setMyCars(carsResponse.data || []);
 
-      // Fetch user's bookings
       const myBookingsResponse = await bookingAPI.getMyBookings();
-      if (myBookingsResponse.success) {
-        setMyBookings(myBookingsResponse.data || []);
-      }
+      if (myBookingsResponse.success) setMyBookings(myBookingsResponse.data || []);
 
-      // Fetch received booking requests
       const receivedResponse = await bookingAPI.getReceivedBookings();
-      if (receivedResponse.success) {
-        setReceivedBookings(receivedResponse.data || []);
-      }
+      if (receivedResponse.success) setReceivedBookings(receivedResponse.data || []);
 
-      // Fetch exchange requests
       const exchangeResponse = await exchangeAPI.getReceivedExchangeRequests();
-      if (exchangeResponse.success) {
-        setExchangeRequests(exchangeResponse.data || []);
-      }
+      if (exchangeResponse.success) setExchangeRequests(exchangeResponse.data || []);
 
-      // Fetch exchange requests the user sent
       const myExchangeResponse = await exchangeAPI.getMyExchangeRequests();
-      if (myExchangeResponse.success) {
-        setMyExchanges(myExchangeResponse.data || []);
-      }
+      if (myExchangeResponse.success) setMyExchanges(myExchangeResponse.data || []);
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
-      console.error('Error details:', error.response || error.message);
+      toast.error('Could not load your dashboard', { description: error.message });
+    } finally {
+      setRefreshing(false);
     }
   }, []);
 
@@ -69,334 +88,422 @@ const Dashboard = () => {
     // Check if coming from AddCar with success and switch to My Cars tab
     if (location.state?.showTab) {
       setActiveTab(location.state.showTab);
+      if (location.state.newCarAdded) {
+        toast.success('Car added successfully', {
+          description: 'You can see it below in My Cars.'
+        });
+      }
       // Clear state to prevent affecting future navigations
       window.history.replaceState({}, document.title);
     }
-  }, [navigate, fetchDashboardData, location.state?.showTab]);
+  }, [navigate, fetchDashboardData, location.state?.showTab, location.state?.newCarAdded]);
 
   useEffect(() => {
     gsap.fromTo(
-      '.dashboard-header, .dashboard-tabs, .dashboard-content',
-      { y: 18, autoAlpha: 0 },
-      { y: 0, autoAlpha: 1, stagger: 0.1, duration: 0.44, ease: 'power2.out' }
+      '[data-dash-reveal]',
+      { y: 12, autoAlpha: 0 },
+      { y: 0, autoAlpha: 1, stagger: 0.08, duration: 0.4, ease: 'power2.out' }
     );
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    window.dispatchEvent(new Event('authChange'));
     navigate('/');
   };
 
   const handleAcceptBooking = async (bookingId) => {
     try {
       await bookingAPI.updateBookingStatus(bookingId, 'confirmed');
-      alert('Booking accepted!');
-      fetchDashboardData(); // Refresh data
+      toast.success('Booking accepted');
+      fetchDashboardData();
     } catch (error) {
       console.error('Error accepting booking:', error);
-      alert('Failed to accept booking');
+      toast.error('Failed to accept booking', { description: error.message });
     }
   };
 
   const handleRejectBooking = async (bookingId) => {
     try {
       await bookingAPI.updateBookingStatus(bookingId, 'cancelled');
-      alert('Booking rejected!');
-      fetchDashboardData(); // Refresh data
+      toast.success('Booking rejected');
+      fetchDashboardData();
     } catch (error) {
       console.error('Error rejecting booking:', error);
-      alert('Failed to reject booking');
+      toast.error('Failed to reject booking', { description: error.message });
     }
   };
 
   const handleExchangeStatus = async (exchangeId, status) => {
     try {
       await exchangeAPI.updateExchangeStatus(exchangeId, status);
+      toast.success(`Exchange request ${status}`);
       fetchDashboardData();
     } catch (error) {
       console.error('Error updating exchange:', error);
-      alert(error.message || 'Failed to update exchange request');
+      toast.error('Failed to update exchange request', { description: error.message });
     }
   };
 
   const formatRange = (start, end) =>
     `${new Date(start).toLocaleDateString()} to ${new Date(end).toLocaleDateString()}`;
 
+  const stats = [
+    { icon: CarFront, value: myCars.length, label: 'My cars', tab: 'myCars' },
+    { icon: CalendarRange, value: myBookings.length, label: 'My bookings', tab: 'myBookings' },
+    { icon: Inbox, value: receivedBookings.length, label: 'Received requests', tab: 'receivedBookings' },
+    { icon: Repeat, value: exchangeRequests.length, label: 'Exchange requests', tab: 'exchanges' }
+  ];
+
   return (
-    <div className="dashboard">
-      {location.state?.newCarAdded && (
-        <div className="success-banner">
-          ✅ Car added successfully! You can see it below in My Cars.
+    <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+      <header data-dash-reveal className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
+            My dashboard
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            Manage your cars, bookings, and exchange requests.
+          </p>
         </div>
-      )}
-      
-      <div className="dashboard-header">
-        <h1>My Dashboard</h1>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button 
-            onClick={async () => {
-              const token = localStorage.getItem('token');
-              const user = localStorage.getItem('user');
-              console.log('🔑 Token:', token ? 'EXISTS (length: ' + token.length + ')' : 'MISSING');
-              console.log('👤 User:', user);
-              console.log('🔄 Manual refresh triggered');
-              await fetchDashboardData();
-            }} 
-            className="btn btn-secondary"
-            style={{ marginRight: '10px' }}
-          >
-            🔄 Refresh
-          </button>
-          <button onClick={handleLogout} className="btn btn-secondary">Logout</button>
+
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={fetchDashboardData} disabled={refreshing}>
+            <RefreshCw data-icon="inline-start" className={refreshing ? 'animate-spin' : undefined} />
+            Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleLogout}>
+            <LogOut data-icon="inline-start" />
+            Logout
+          </Button>
         </div>
-      </div>
+      </header>
 
-      <div className="dashboard-tabs">
-        <button
-          className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
-          onClick={() => setActiveTab('overview')}
-        >
-          Overview
-        </button>
-        <button
-          className={`tab ${activeTab === 'myCars' ? 'active' : ''}`}
-          onClick={() => setActiveTab('myCars')}
-        >
-          My Cars
-        </button>
-        <button
-          className={`tab ${activeTab === 'myBookings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('myBookings')}
-        >
-          My Bookings
-        </button>
-        <button
-          className={`tab ${activeTab === 'receivedBookings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('receivedBookings')}
-        >
-          Received Requests
-        </button>
-        <button
-          className={`tab ${activeTab === 'exchanges' ? 'active' : ''}`}
-          onClick={() => setActiveTab('exchanges')}
-        >
-          Exchange Requests
-        </button>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-8" data-dash-reveal>
+        <TabsList className="w-full justify-start overflow-x-auto">
+          {tabs.map(({ id, label }) => (
+            <TabsTrigger key={id} value={id}>{label}</TabsTrigger>
+          ))}
+        </TabsList>
 
-      <div className="dashboard-content">
-        {activeTab === 'overview' && (
-          <div className="overview">
-            <div className="stats-grid">
-              <div className="stat-card">
-                <h3>{myCars.length}</h3>
-                <p>My Cars</p>
-              </div>
-              <div className="stat-card">
-                <h3>{myBookings.length}</h3>
-                <p>My Bookings</p>
-              </div>
-              <div className="stat-card">
-                <h3>{receivedBookings.length}</h3>
-                <p>Pending Requests</p>
-              </div>
-              <div className="stat-card">
-                <h3>{exchangeRequests.length}</h3>
-                <p>Exchange Requests</p>
-              </div>
-            </div>
-
-            <div className="quick-actions">
-              <h2>Quick Actions</h2>
-              <div className="actions-grid">
-                <Link to="/add-car" className="action-card">
-                  <span className="action-icon">🚗</span>
-                  <span>Add New Car</span>
-                </Link>
-                <Link to="/cars" className="action-card">
-                  <span className="action-icon">🔍</span>
-                  <span>Browse Cars</span>
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'myCars' && (
-          <div className="my-cars">
-            <div className="section-header">
-              <h2>My Cars</h2>
-              <Link to="/add-car" className="btn btn-primary">Add New Car</Link>
-            </div>
-
-            <div className="cars-list">
-              {myCars.length > 0 ? (
-                myCars.map(car => (
-                  <div key={car._id} className="car-item">
-                    <div className="car-item-info">
-                      <h3>{car.brand} {car.model}</h3>
-                      <p>Year: {car.year}</p>
-                      <p>Location: {car.location}, {car.area}</p>
-                      <span className={`status ${car.isAvailable ? 'available' : 'unavailable'}`}>
-                        {car.isAvailable ? 'Available' : 'Unavailable'}
-                      </span>
-                      <span className={`badge ${car.availableFor}`}>
-                        {car.availableFor === 'both' ? 'Rent & Exchange' : car.availableFor}
-                      </span>
-                    </div>
-                    <div className="car-item-stats">
-                      <p>₹{car.pricePerDay}/day</p>
-                      <p>{car.totalBookings || 0} total bookings</p>
-                      <p>Rating: {car.rating.toFixed(1)} ⭐ ({car.totalRatings})</p>
-                    </div>
-                    <div className="car-item-actions">
-                      <button className="btn-small">Edit</button>
-                      <button className="btn-small btn-danger">Delete</button>
-                    </div>
+        {/* ---------- Overview ---------- */}
+        <TabsContent value="overview" className="mt-6 flex flex-col gap-10">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {stats.map(({ icon: Icon, value, label, tab }) => (
+              <Card key={label} className="relative">
+                <CardHeader>
+                  <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-muted">
+                    <Icon className="size-4.5" />
                   </div>
-                ))
-              ) : (
-                <p className="empty-state">No cars listed yet. <Link to="/add-car">Add your first car</Link></p>
-              )}
-            </div>
+                  <CardTitle className="font-heading text-3xl font-semibold">{value}</CardTitle>
+                  <CardDescription>{label}</CardDescription>
+                </CardHeader>
+                {/* Overlay keeps the whole card clickable without nesting interactive elements. */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  aria-label={`View ${label}`}
+                  className="absolute inset-0 rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                />
+              </Card>
+            ))}
           </div>
-        )}
 
-        {activeTab === 'myBookings' && (
-          <div className="my-bookings">
-            <h2>My Bookings</h2>
-            <div className="bookings-list">
+          <section>
+            <h2 className="font-heading text-xl font-semibold tracking-tight">Quick actions</h2>
+            <ItemGroup className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Item variant="outline" asChild>
+                <Link to="/add-car">
+                  <ItemMedia variant="icon">
+                    <CirclePlus />
+                  </ItemMedia>
+                  <ItemContent>
+                    <ItemTitle>Add a new car</ItemTitle>
+                    <ItemDescription>List a car for rent or exchange</ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    <ArrowRight className="size-4 text-muted-foreground" />
+                  </ItemActions>
+                </Link>
+              </Item>
+
+              <Item variant="outline" asChild>
+                <Link to="/cars">
+                  <ItemMedia variant="icon">
+                    <Search />
+                  </ItemMedia>
+                  <ItemContent>
+                    <ItemTitle>Browse cars</ItemTitle>
+                    <ItemDescription>Find your next ride nearby</ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    <ArrowRight className="size-4 text-muted-foreground" />
+                  </ItemActions>
+                </Link>
+              </Item>
+            </ItemGroup>
+          </section>
+        </TabsContent>
+
+        {/* ---------- My cars ---------- */}
+        <TabsContent value="myCars" className="mt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-heading text-xl font-semibold tracking-tight">My cars</h2>
+            <Button size="sm" asChild>
+              <Link to="/add-car">
+                <CirclePlus data-icon="inline-start" />
+                Add new car
+              </Link>
+            </Button>
+          </div>
+
+          <ItemGroup className="mt-5 gap-4">
+            {myCars.length > 0 ? (
+              myCars.map(car => (
+                <Item key={car._id} variant="outline" className="flex-wrap">
+                  <ItemContent>
+                    <ItemTitle>{car.brand} {car.model}</ItemTitle>
+                    <ItemDescription>
+                      {car.year} • {car.location}{car.area ? `, ${car.area}` : ''}
+                    </ItemDescription>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <Badge variant={car.isAvailable ? 'success' : 'secondary'}>
+                        {car.isAvailable ? 'Available' : 'Unavailable'}
+                      </Badge>
+                      <Badge variant="outline">
+                        {car.availableFor === 'both' ? 'Rent & exchange' : car.availableFor}
+                      </Badge>
+                      <Badge variant="outline">
+                        ⭐ {car.rating.toFixed(1)} ({car.totalRatings})
+                      </Badge>
+                    </div>
+                  </ItemContent>
+
+                  <ItemContent className="flex-none text-right">
+                    <ItemTitle className="font-heading text-lg font-semibold">
+                      ₹{car.pricePerDay}
+                      <span className="text-xs font-normal text-muted-foreground">/day</span>
+                    </ItemTitle>
+                    <ItemDescription>{car.totalBookings || 0} total bookings</ItemDescription>
+                  </ItemContent>
+
+                  <ItemActions>
+                    <Button variant="outline" size="sm">Edit</Button>
+                    <Button variant="destructive" size="sm">Delete</Button>
+                  </ItemActions>
+                </Item>
+              ))
+            ) : (
+              <EmptyState
+                icon={CarFront}
+                title="No cars listed yet"
+                description="List your first car and start earning or arranging exchanges."
+              >
+                <Button asChild>
+                  <Link to="/add-car">Add your first car</Link>
+                </Button>
+              </EmptyState>
+            )}
+          </ItemGroup>
+        </TabsContent>
+
+        {/* ---------- My bookings ---------- */}
+        <TabsContent value="myBookings" className="mt-6 flex flex-col gap-10">
+          <section>
+            <h2 className="font-heading text-xl font-semibold tracking-tight">My bookings</h2>
+            <ItemGroup className="mt-5 gap-4">
               {myBookings.length > 0 ? (
                 myBookings.map(booking => (
-                  <Link
-                    key={booking._id}
-                    to={`/booking/${booking._id}`}
-                    className="booking-item booking-item-link"
-                  >
-                    <div className="booking-info">
-                      <h3>{booking.car?.brand} {booking.car?.model}</h3>
-                      <p>{formatRange(booking.startDate, booking.endDate)}</p>
-                      <p>Total: ₹{booking.totalPrice} ({booking.totalDays} days)</p>
-                      <span className={`status ${booking.status}`}>{booking.status}</span>
-                    </div>
-                    <span className="booking-chevron">View details →</span>
-                  </Link>
+                  <Item key={booking._id} variant="outline" asChild>
+                    <Link to={`/booking/${booking._id}`}>
+                      <ItemContent>
+                        <ItemTitle>{booking.car?.brand} {booking.car?.model}</ItemTitle>
+                        <ItemDescription>
+                          {formatRange(booking.startDate, booking.endDate)} — ₹{booking.totalPrice}{' '}
+                          ({booking.totalDays} days)
+                        </ItemDescription>
+                        <div className="mt-2">
+                          <Badge variant={statusBadgeVariant(booking.status)}>
+                            {booking.status}
+                          </Badge>
+                        </div>
+                      </ItemContent>
+                      <ItemActions>
+                        <ArrowRight className="size-4 text-muted-foreground" />
+                      </ItemActions>
+                    </Link>
+                  </Item>
                 ))
               ) : (
-                <p className="empty-state">No bookings yet. <Link to="/cars">Browse cars</Link></p>
+                <EmptyState
+                  icon={CalendarRange}
+                  title="No bookings yet"
+                  description="Once you book a car, it'll show up here."
+                >
+                  <Button asChild>
+                    <Link to="/cars">Browse cars</Link>
+                  </Button>
+                </EmptyState>
               )}
-            </div>
+            </ItemGroup>
+          </section>
 
-            <h2 style={{ marginTop: '1.5rem' }}>My Exchange Requests</h2>
-            <div className="bookings-list">
+          <section>
+            <h2 className="font-heading text-xl font-semibold tracking-tight">
+              My exchange requests
+            </h2>
+            <ItemGroup className="mt-5 gap-4">
               {myExchanges.length > 0 ? (
                 myExchanges.map(exchange => (
-                  <Link
-                    key={exchange._id}
-                    to={`/exchange/${exchange._id}`}
-                    className="booking-item booking-item-link"
-                  >
-                    <div className="booking-info">
-                      <h3>{exchange.requestedCar?.brand} {exchange.requestedCar?.model}</h3>
-                      <p>
-                        You offered: {exchange.offeredCar?.brand} {exchange.offeredCar?.model}
-                      </p>
-                      <p>{formatRange(exchange.startDate, exchange.endDate)}</p>
-                      <span className={`status ${exchange.status}`}>{exchange.status}</span>
-                    </div>
-                    <span className="booking-chevron">View details →</span>
-                  </Link>
+                  <Item key={exchange._id} variant="outline" asChild>
+                    <Link to={`/exchange/${exchange._id}`}>
+                      <ItemContent>
+                        <ItemTitle>
+                          {exchange.requestedCar?.brand} {exchange.requestedCar?.model}
+                        </ItemTitle>
+                        <ItemDescription>
+                          You offered: {exchange.offeredCar?.brand} {exchange.offeredCar?.model} —{' '}
+                          {formatRange(exchange.startDate, exchange.endDate)}
+                        </ItemDescription>
+                        <div className="mt-2">
+                          <Badge variant={statusBadgeVariant(exchange.status)}>
+                            {exchange.status}
+                          </Badge>
+                        </div>
+                      </ItemContent>
+                      <ItemActions>
+                        <ArrowRight className="size-4 text-muted-foreground" />
+                      </ItemActions>
+                    </Link>
+                  </Item>
                 ))
               ) : (
-                <p className="empty-state">No exchange requests sent yet.</p>
+                <EmptyState
+                  icon={Repeat}
+                  title="No exchange requests sent"
+                  description="Find a car marked for exchange and offer a swap."
+                >
+                  <Button variant="outline" asChild>
+                    <Link to="/cars">Browse cars</Link>
+                  </Button>
+                </EmptyState>
               )}
-            </div>
-          </div>
-        )}
+            </ItemGroup>
+          </section>
+        </TabsContent>
 
-        {activeTab === 'receivedBookings' && (
-          <div className="received-bookings">
-            <h2>Received Booking Requests</h2>
-            <div className="bookings-list">
-              {receivedBookings.length > 0 ? (
-                receivedBookings.map(booking => (
-                  <div key={booking._id} className="booking-item">
-                    <div className="booking-info">
-                      <h3>{booking.car?.brand} {booking.car?.model}</h3>
-                      <p>Renter: {booking.renter?.fullName}</p>
-                      <p>Phone: {booking.renter?.phone}</p>
-                      <p>{new Date(booking.startDate).toLocaleDateString()} to {new Date(booking.endDate).toLocaleDateString()}</p>
-                      <p>Total: ₹{booking.totalPrice} ({booking.totalDays} days)</p>
-                      {booking.message && <p>Message: {booking.message}</p>}
-                      <span className={`status ${booking.status}`}>{booking.status}</span>
+        {/* ---------- Received bookings ---------- */}
+        <TabsContent value="receivedBookings" className="mt-6">
+          <h2 className="font-heading text-xl font-semibold tracking-tight">
+            Received booking requests
+          </h2>
+          <ItemGroup className="mt-5 gap-4">
+            {receivedBookings.length > 0 ? (
+              receivedBookings.map(booking => (
+                <Item key={booking._id} variant="outline" className="flex-wrap">
+                  <ItemContent>
+                    <ItemTitle>{booking.car?.brand} {booking.car?.model}</ItemTitle>
+                    <ItemDescription className="flex flex-col gap-0.5">
+                      <span>Renter: {booking.renter?.fullName} • {booking.renter?.phone}</span>
+                      <span>{formatRange(booking.startDate, booking.endDate)}</span>
+                      <span>₹{booking.totalPrice} ({booking.totalDays} days)</span>
+                      {booking.message && <span className="italic">“{booking.message}”</span>}
+                    </ItemDescription>
+                    <div className="mt-2">
+                      <Badge variant={statusBadgeVariant(booking.status)}>{booking.status}</Badge>
                     </div>
-                    {booking.status === 'pending' && (
-                      <div className="booking-actions">
-                        <button 
-                          className="btn btn-primary btn-small"
-                          onClick={() => handleAcceptBooking(booking._id)}
-                        >
-                          Accept
-                        </button>
-                        <button 
-                          className="btn btn-danger btn-small"
-                          onClick={() => handleRejectBooking(booking._id)}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p className="empty-state">No booking requests</p>
-              )}
-            </div>
-          </div>
-        )}
+                  </ItemContent>
 
-        {activeTab === 'exchanges' && (
-          <div className="exchange-requests">
-            <h2>Car Exchange Requests</h2>
-            <div className="exchanges-list">
-              {exchangeRequests.length > 0 ? (
-                exchangeRequests.map(request => (
-                  <div key={request._id} className="exchange-item">
-                    <div className="exchange-info">
-                      <h3>Exchange Request from {request.requester?.fullName || 'A user'}</h3>
-                      <p>Your car: {request.requestedCar?.brand} {request.requestedCar?.model} ({request.requestedCar?.year})</p>
-                      <p>Their car: {request.offeredCar?.brand} {request.offeredCar?.model} ({request.offeredCar?.year})</p>
-                      <p>{formatRange(request.startDate, request.endDate)} • {request.totalDays} days</p>
-                      {request.requester?.phone && <p>Phone: {request.requester.phone}</p>}
-                      {request.message && <p>Message: {request.message}</p>}
-                      <span className={`status ${request.status}`}>{request.status}</span>
+                  {booking.status === 'pending' && (
+                    <ItemActions>
+                      <Button size="sm" onClick={() => handleAcceptBooking(booking._id)}>
+                        <Check data-icon="inline-start" />
+                        Accept
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleRejectBooking(booking._id)}
+                      >
+                        <X data-icon="inline-start" />
+                        Reject
+                      </Button>
+                    </ItemActions>
+                  )}
+                </Item>
+              ))
+            ) : (
+              <EmptyState
+                icon={Inbox}
+                title="No booking requests"
+                description="Requests for your listed cars will appear here."
+              />
+            )}
+          </ItemGroup>
+        </TabsContent>
+
+        {/* ---------- Exchange requests ---------- */}
+        <TabsContent value="exchanges" className="mt-6">
+          <h2 className="font-heading text-xl font-semibold tracking-tight">
+            Car exchange requests
+          </h2>
+          <ItemGroup className="mt-5 gap-4">
+            {exchangeRequests.length > 0 ? (
+              exchangeRequests.map(request => (
+                <Item key={request._id} variant="outline" className="flex-wrap">
+                  <ItemContent>
+                    <ItemTitle>
+                      Exchange request from {request.requester?.fullName || 'a user'}
+                    </ItemTitle>
+                    <ItemDescription className="flex flex-col gap-0.5">
+                      <span>
+                        Your car: {request.requestedCar?.brand} {request.requestedCar?.model}{' '}
+                        ({request.requestedCar?.year})
+                      </span>
+                      <span>
+                        Their car: {request.offeredCar?.brand} {request.offeredCar?.model}{' '}
+                        ({request.offeredCar?.year})
+                      </span>
+                      <span>
+                        {formatRange(request.startDate, request.endDate)} • {request.totalDays} days
+                      </span>
+                      {request.requester?.phone && <span>Phone: {request.requester.phone}</span>}
+                      {request.message && <span className="italic">“{request.message}”</span>}
+                    </ItemDescription>
+                    <div className="mt-2">
+                      <Badge variant={statusBadgeVariant(request.status)}>{request.status}</Badge>
                     </div>
-                    {request.status === 'pending' && (
-                      <div className="exchange-actions">
-                        <button
-                          className="btn btn-primary btn-small"
-                          onClick={() => handleExchangeStatus(request._id, 'accepted')}
-                        >
-                          Accept
-                        </button>
-                        <button
-                          className="btn btn-danger btn-small"
-                          onClick={() => handleExchangeStatus(request._id, 'rejected')}
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p className="empty-state">No exchange requests</p>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+                  </ItemContent>
+
+                  {request.status === 'pending' && (
+                    <ItemActions>
+                      <Button size="sm" onClick={() => handleExchangeStatus(request._id, 'accepted')}>
+                        <Check data-icon="inline-start" />
+                        Accept
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleExchangeStatus(request._id, 'rejected')}
+                      >
+                        <X data-icon="inline-start" />
+                        Reject
+                      </Button>
+                    </ItemActions>
+                  )}
+                </Item>
+              ))
+            ) : (
+              <EmptyState
+                icon={Repeat}
+                title="No exchange requests"
+                description="Swap offers for your cars will show up here."
+              />
+            )}
+          </ItemGroup>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

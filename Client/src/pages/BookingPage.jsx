@@ -1,7 +1,25 @@
 import { useState, useEffect } from 'react';
-import { useParams, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { bookingAPI, exchangeAPI, carAPI } from '../utils/apiService';
-import './BookingPage.css';
+import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { bookingAPI, exchangeAPI, carAPI } from '@/utils/apiService';
+import { carImageSrc, handleImageError } from '@/utils/carImage';
+import { PageLoader, PageMessage } from '@/components/StateMessage';
+import { AlertCircleIcon, ArrowLeft, CarFront } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertTitle } from '@/components/ui/alert';
+import { Spinner } from '@/components/ui/spinner';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 
 const BookingPage = () => {
   const { id } = useParams();
@@ -118,7 +136,6 @@ const BookingPage = () => {
           message: bookingData.message || ''
         };
 
-        console.log('Creating booking:', bookingPayload);
         const response = await bookingAPI.createBooking(bookingPayload);
 
         if (response.success && response.data?._id) {
@@ -139,7 +156,6 @@ const BookingPage = () => {
           message: bookingData.message || ''
         };
 
-        console.log('Creating exchange:', exchangePayload);
         const response = await exchangeAPI.createExchangeRequest(exchangePayload);
 
         if (response.success && response.data?._id) {
@@ -160,120 +176,177 @@ const BookingPage = () => {
   };
 
   if (carLoading) {
-    return <div className="loading">Loading booking details...</div>;
+    return <PageLoader label="Loading booking details…" />;
   }
 
   if (!car) {
-    return <div className="error">Invalid booking request</div>;
+    return (
+      <PageMessage
+        icon={CarFront}
+        title="Invalid booking request"
+        description="We couldn't find the car you're trying to book."
+      >
+        <Button asChild>
+          <Link to="/cars">Browse cars</Link>
+        </Button>
+      </PageMessage>
+    );
   }
 
+  const isRent = type === 'rent';
+  const label = `${car.brand} ${car.model}`;
+  const days = calculateDays();
+
   return (
-    <div className="booking-page">
-      <div className="booking-container">
-        <div className="booking-summary">
-          <h2>Booking Summary</h2>
-          <div className="summary-car">
+    <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+      <Button variant="ghost" size="sm" className="mb-6" onClick={() => navigate(-1)}>
+        <ArrowLeft data-icon="inline-start" />
+        Back
+      </Button>
+
+      <header>
+        <p className="text-sm text-muted-foreground">{isRent ? 'Rental' : 'Exchange'}</p>
+        <h1 className="font-heading mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
+          {isRent ? 'Complete your booking' : 'Request a car exchange'}
+        </h1>
+      </header>
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1.15fr] lg:gap-10">
+        {/* ---------- Summary ---------- */}
+        <aside className="lg:sticky lg:top-24 lg:self-start">
+          <Card>
             <img
-              src={car.images?.[0] || car.image || 'https://via.placeholder.com/300x200?text=Car+Image'}
-              alt={`${car.brand} ${car.model}`}
+              src={carImageSrc(car)}
+              alt={label}
+              onError={handleImageError(label)}
+              className="aspect-16/10 w-full object-cover"
             />
-            <div>
-              <h3>{car.brand} {car.model}</h3>
-              <p>{car.year} • {car.location}</p>
-            </div>
-          </div>
 
-          {type === 'rent' && (
-            <div className="price-breakdown">
-              <h3>Price Details</h3>
-              <div className="price-row">
-                <span>₹{car.pricePerDay} × {calculateDays() || 0} days</span>
-                <span>₹{totalPrice}</span>
-              </div>
-              <div className="price-row total">
-                <span>Total</span>
-                <span>₹{totalPrice}</span>
-              </div>
-            </div>
-          )}
-        </div>
+            <CardContent className="flex flex-col gap-1">
+              <CardTitle>{label}</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {car.year} • {car.location}
+              </p>
+            </CardContent>
 
-        <div className="booking-form-section">
-          <h2>{type === 'rent' ? 'Complete Your Booking' : 'Request Car Exchange'}</h2>
-          
-          {error && <div className="error-message">{error}</div>}
-          
-          <form onSubmit={handleSubmit} className="booking-form">
-            <div className="form-group">
-              <label htmlFor="startDate">
-                {type === 'rent' ? 'Start Date' : 'Exchange Start Date'}
-              </label>
-              <input
-                type="date"
-                id="startDate"
-                name="startDate"
-                value={bookingData.startDate}
-                onChange={handleChange}
-                min={new Date().toISOString().split('T')[0]}
-                required
-              />
-            </div>
+            {isRent && (
+              <CardContent className="flex flex-col gap-3">
+                <Separator />
+                <p className="text-xs text-muted-foreground">Price details</p>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    ₹{car.pricePerDay} × {days} {days === 1 ? 'day' : 'days'}
+                  </span>
+                  <span>₹{totalPrice}</span>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Total</span>
+                  <span className="font-heading text-2xl font-semibold">₹{totalPrice}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Pay the owner directly at pickup.</p>
+              </CardContent>
+            )}
+          </Card>
+        </aside>
 
-            <div className="form-group">
-              <label htmlFor="endDate">
-                {type === 'rent' ? 'End Date' : 'Exchange End Date'}
-              </label>
-              <input
-                type="date"
-                id="endDate"
-                name="endDate"
-                value={bookingData.endDate}
-                onChange={handleChange}
-                min={bookingData.startDate || new Date().toISOString().split('T')[0]}
-                required
-              />
-            </div>
-
-            {type === 'exchange' && (
-              <div className="form-group">
-                <label htmlFor="carForExchange">Select Your Car for Exchange</label>
-                <select
-                  id="carForExchange"
-                  name="carForExchange"
-                  value={bookingData.carForExchange || ''}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="">Choose a car...</option>
-                  {myCars.map(myCar => (
-                    <option key={myCar._id || myCar.id} value={myCar._id || myCar.id}>
-                      {myCar.brand} {myCar.model} ({myCar.year})
-                    </option>
-                  ))}
-                </select>
-                <small>Don't have a car listed? <a href="/add-car">Add your car</a></small>
-              </div>
+        {/* ---------- Form ---------- */}
+        <Card className="[--card-spacing:--spacing(6)]">
+          <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircleIcon />
+                <AlertTitle>{error}</AlertTitle>
+              </Alert>
             )}
 
-            <div className="form-group">
-              <label htmlFor="message">Message to Owner (Optional)</label>
-              <textarea
-                id="message"
-                name="message"
-                value={bookingData.message}
-                onChange={handleChange}
-                placeholder="Any special requests or information..."
-              />
-            </div>
+            <form onSubmit={handleSubmit}>
+              <FieldGroup>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="startDate">
+                      {isRent ? 'Start date' : 'Exchange start'}
+                    </FieldLabel>
+                    <Input
+                      type="date"
+                      id="startDate"
+                      name="startDate"
+                      value={bookingData.startDate}
+                      onChange={handleChange}
+                      min={new Date().toISOString().split('T')[0]}
+                      required
+                    />
+                  </Field>
 
-            <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
-              {loading 
-                ? 'Processing...' 
-                : type === 'rent' ? 'Confirm Booking' : 'Send Exchange Request'
-              }
-            </button>
-          </form>
-        </div>
+                  <Field>
+                    <FieldLabel htmlFor="endDate">
+                      {isRent ? 'End date' : 'Return by'}
+                    </FieldLabel>
+                    <Input
+                      type="date"
+                      id="endDate"
+                      name="endDate"
+                      value={bookingData.endDate}
+                      onChange={handleChange}
+                      min={bookingData.startDate || new Date().toISOString().split('T')[0]}
+                      required
+                    />
+                  </Field>
+                </div>
+
+                {type === 'exchange' && (
+                  <Field>
+                    <FieldLabel htmlFor="carForExchange">Your car for the exchange</FieldLabel>
+                    <Select
+                      value={bookingData.carForExchange || ''}
+                      onValueChange={(value) =>
+                        setBookingData({ ...bookingData, carForExchange: value })
+                      }
+                    >
+                      <SelectTrigger id="carForExchange" className="w-full">
+                        <SelectValue placeholder="Choose a car…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {myCars.map(myCar => (
+                            <SelectItem key={myCar._id || myCar.id} value={myCar._id || myCar.id}>
+                              {myCar.brand} {myCar.model} ({myCar.year})
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>
+                      Don&apos;t have a car listed?{' '}
+                      <Link to="/add-car" className="font-medium text-foreground hover:underline">
+                        Add your car
+                      </Link>
+                    </FieldDescription>
+                  </Field>
+                )}
+
+                <Field>
+                  <FieldLabel htmlFor="message">Message to owner (optional)</FieldLabel>
+                  <Textarea
+                    id="message"
+                    name="message"
+                    value={bookingData.message}
+                    onChange={handleChange}
+                    placeholder="Any special requests or information…"
+                    className="min-h-28"
+                  />
+                </Field>
+
+                <Button type="submit" size="lg" className="w-full" disabled={loading}>
+                  {loading && <Spinner data-icon="inline-start" />}
+                  {loading
+                    ? 'Processing…'
+                    : isRent ? 'Confirm booking' : 'Send exchange request'}
+                </Button>
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

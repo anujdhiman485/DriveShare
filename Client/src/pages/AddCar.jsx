@@ -1,8 +1,60 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { indianCities, getCityByName, getCurrentLocation, findNearestCities } from '../utils/locationUtils';
-import { carAPI } from '../utils/apiService';
-import './AddCar.css';
+import { indianCities, getCityByName, getCurrentLocation, findNearestCities } from '@/utils/locationUtils';
+import { carAPI } from '@/utils/apiService';
+import { AlertCircleIcon, CheckCircle2Icon, ImagePlus, LocateFixed } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Spinner } from '@/components/ui/spinner';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+  FieldTitle
+} from '@/components/ui/field';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+
+const featureOptions = [
+  'AC', 'Power Steering', 'ABS', 'Airbags', 'Music System',
+  'GPS', 'Bluetooth', 'Sunroof', 'Parking Sensors', 'Reverse Camera'
+];
+
+const availabilityOptions = [
+  { value: 'rent', title: 'Rent only' },
+  { value: 'exchange', title: 'Exchange only' },
+  { value: 'both', title: 'Both' }
+];
+
+/** Card wrapper for one step of the listing form. */
+const Section = ({ step, title, description, children }) => (
+  <Card className="[--card-spacing:--spacing(6)]">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2.5">
+        <span className="flex size-6 items-center justify-center rounded-md bg-muted text-xs font-medium">
+          {step}
+        </span>
+        {title}
+      </CardTitle>
+      {description && <CardDescription>{description}</CardDescription>}
+    </CardHeader>
+    <CardContent>{children}</CardContent>
+  </Card>
+);
 
 const AddCar = () => {
   const navigate = useNavigate();
@@ -28,74 +80,58 @@ const AddCar = () => {
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [detectedCity, setDetectedCity] = useState(null);
 
-  const featureOptions = [
-    'AC', 'Power Steering', 'ABS', 'Airbags', 'Music System', 
-    'GPS', 'Bluetooth', 'Sunroof', 'Parking Sensors', 'Reverse Camera'
-  ];
-
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
+    setFormData((current) => ({ ...current, [name]: value }));
+  };
 
-    if (type === 'checkbox') {
-      if (checked) {
-        setFormData({
-          ...formData,
-          features: [...formData.features, value]
-        });
-      } else {
-        setFormData({
-          ...formData,
-          features: formData.features.filter(f => f !== value)
-        });
-      }
-    } else if (name === 'location') {
+  const handleSelect = (name) => (value) => {
+    if (name === 'location') {
       // When city is selected, auto-fill coordinates
       const city = getCityByName(value);
-      setFormData({
-        ...formData,
+      setFormData((current) => ({
+        ...current,
         location: value,
         coordinates: city ? { lat: city.lat, lon: city.lon } : { lat: null, lon: null }
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value
-      });
+      }));
+      return;
     }
+    setFormData((current) => ({ ...current, [name]: value }));
+  };
+
+  const toggleFeature = (feature) => (checked) => {
+    setFormData((current) => ({
+      ...current,
+      features: checked
+        ? [...current.features, feature]
+        : current.features.filter((f) => f !== feature)
+    }));
   };
 
   const handleUseMyLocation = async () => {
     setDetectingLocation(true);
     setError('');
-    
+
     try {
       const location = await getCurrentLocation();
-      console.log('📍 Detected location:', location);
-      
+
       // Find nearest city
       const nearestCities = findNearestCities(location.latitude, location.longitude, 100, 1);
-      
+
       if (nearestCities.length > 0) {
         const nearest = nearestCities[0];
-        console.log('🏙️ Nearest city:', nearest.name, nearest.distance, 'km away');
-        
+
         setDetectedCity(nearest);
-        setFormData({
-          ...formData,
+        setFormData((current) => ({
+          ...current,
           location: nearest.name,
-          coordinates: { 
-            lat: location.latitude, 
-            lon: location.longitude 
-          }
-        });
+          coordinates: { lat: location.latitude, lon: location.longitude }
+        }));
       } else {
-        setFormData({
-          ...formData,
-          coordinates: { 
-            lat: location.latitude, 
-            lon: location.longitude 
-          }
-        });
+        setFormData((current) => ({
+          ...current,
+          coordinates: { lat: location.latitude, lon: location.longitude }
+        }));
         setError('Location detected, but no nearby city found in our list. Please select a city manually.');
       }
     } catch (err) {
@@ -109,10 +145,7 @@ const AddCar = () => {
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
     // TODO: Handle image upload to server/cloud storage
-    setFormData({
-      ...formData,
-      images: files
-    });
+    setFormData((current) => ({ ...current, images: files }));
   };
 
   const handleSubmit = async (e) => {
@@ -174,12 +207,8 @@ const AddCar = () => {
         availableFor: formData.availableFor
       };
 
-      console.log('Sending car data:', carData);
-
       const response = await carAPI.createCar(carData);
-      
-      console.log('API Response:', response);
-      
+
       if (response.success) {
         // Navigate to dashboard with state to show My Cars tab
         navigate('/dashboard', { state: { showTab: 'myCars', newCarAdded: true } });
@@ -195,285 +224,255 @@ const AddCar = () => {
   };
 
   return (
-    <div className="add-car">
-      <div className="add-car-container">
-        <h1>List Your Car</h1>
-        <p className="subtitle">Share your car and earn money or exchange with fellow enthusiasts</p>
+    <div className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
+      <header>
+        <p className="text-sm text-muted-foreground">Become a host</p>
+        <h1 className="font-heading mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
+          List your car
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          Share your car and earn money, or exchange with fellow enthusiasts.
+        </p>
+      </header>
 
-        {error && <div className="error-message">{error}</div>}
+      {error && (
+        <Alert variant="destructive" className="mt-6">
+          <AlertCircleIcon />
+          <AlertTitle>{error}</AlertTitle>
+        </Alert>
+      )}
 
-        <form onSubmit={handleSubmit} className="add-car-form">
-          <div className="form-section">
-            <h2>Basic Information</h2>
-            
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="brand">Brand *</label>
-                <input
-                  type="text"
-                  id="brand"
-                  name="brand"
-                  value={formData.brand}
-                  onChange={handleChange}
-                  required
-                  placeholder="e.g., Toyota, Honda"
-                />
-              </div>
+      <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
+        {/* ---------- Basics ---------- */}
+        <Section step="1" title="Basic information" description="Tell us what you're listing.">
+          <FieldGroup>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field>
+                <FieldLabel htmlFor="brand">Brand *</FieldLabel>
+                <Input id="brand" name="brand" value={formData.brand} onChange={handleChange}
+                  required placeholder="Toyota" />
+              </Field>
 
-              <div className="form-group">
-                <label htmlFor="model">Model *</label>
-                <input
-                  type="text"
-                  id="model"
-                  name="model"
-                  value={formData.model}
-                  onChange={handleChange}
-                  required
-                  placeholder="e.g., Camry, Civic"
-                />
-              </div>
+              <Field>
+                <FieldLabel htmlFor="model">Model *</FieldLabel>
+                <Input id="model" name="model" value={formData.model} onChange={handleChange}
+                  required placeholder="Camry" />
+              </Field>
 
-              <div className="form-group">
-                <label htmlFor="year">Year *</label>
-                <input
-                  type="number"
-                  id="year"
-                  name="year"
-                  value={formData.year}
-                  onChange={handleChange}
-                  required
-                  min="2000"
-                  max={new Date().getFullYear() + 1}
-                  placeholder="2023"
-                />
-              </div>
+              <Field>
+                <FieldLabel htmlFor="year">Year *</FieldLabel>
+                <Input type="number" id="year" name="year" value={formData.year}
+                  onChange={handleChange} required min="2000"
+                  max={new Date().getFullYear() + 1} placeholder="2023" />
+              </Field>
             </div>
 
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="fuelType">Fuel Type *</label>
-                <select
-                  id="fuelType"
-                  name="fuelType"
-                  value={formData.fuelType}
-                  onChange={handleChange}
-                  required
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field>
+                <FieldLabel htmlFor="fuelType">Fuel type *</FieldLabel>
+                <Select value={formData.fuelType} onValueChange={handleSelect('fuelType')}>
+                  <SelectTrigger id="fuelType" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="petrol">Petrol</SelectItem>
+                      <SelectItem value="diesel">Diesel</SelectItem>
+                      <SelectItem value="electric">Electric</SelectItem>
+                      <SelectItem value="hybrid">Hybrid</SelectItem>
+                      <SelectItem value="cng">CNG</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="transmission">Transmission *</FieldLabel>
+                <Select value={formData.transmission} onValueChange={handleSelect('transmission')}>
+                  <SelectTrigger id="transmission" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="manual">Manual</SelectItem>
+                      <SelectItem value="automatic">Automatic</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="seating">Seats *</FieldLabel>
+                <Input type="number" id="seating" name="seating" value={formData.seating}
+                  onChange={handleChange} required min="2" max="8" placeholder="5" />
+              </Field>
+            </div>
+          </FieldGroup>
+        </Section>
+
+        {/* ---------- Location & pricing ---------- */}
+        <Section step="2" title="Location & pricing" description="Where the car lives, and what it costs.">
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="location">City *</FieldLabel>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Select value={formData.location} onValueChange={handleSelect('location')}>
+                  <SelectTrigger id="location" className="w-full">
+                    <SelectValue placeholder="Select a city" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {indianCities.map(city => (
+                        <SelectItem key={city.name} value={city.name}>
+                          {city.name}, {city.state}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={handleUseMyLocation}
+                  disabled={detectingLocation}
                 >
-                  <option value="petrol">Petrol</option>
-                  <option value="diesel">Diesel</option>
-                  <option value="electric">Electric</option>
-                  <option value="hybrid">Hybrid</option>
-                  <option value="cng">CNG</option>
-                </select>
+                  {detectingLocation
+                    ? <Spinner data-icon="inline-start" />
+                    : <LocateFixed data-icon="inline-start" />}
+                  {detectingLocation ? 'Detecting…' : 'Use my location'}
+                </Button>
               </div>
+              <FieldDescription>Select the city where your car is located.</FieldDescription>
+            </Field>
 
-              <div className="form-group">
-                <label htmlFor="transmission">Transmission *</label>
-                <select
-                  id="transmission"
-                  name="transmission"
-                  value={formData.transmission}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="manual">Manual</option>
-                  <option value="automatic">Automatic</option>
-                </select>
-              </div>
+            {detectedCity && (
+              <Alert>
+                <CheckCircle2Icon />
+                <AlertTitle>
+                  Location detected near {detectedCity.name}, {detectedCity.state}
+                </AlertTitle>
+                <AlertDescription>{detectedCity.distance.toFixed(1)}km away</AlertDescription>
+              </Alert>
+            )}
 
-              <div className="form-group">
-                <label htmlFor="seating">Seating Capacity *</label>
-                <input
-                  type="number"
-                  id="seating"
-                  name="seating"
-                  value={formData.seating}
-                  onChange={handleChange}
-                  required
-                  min="2"
-                  max="8"
-                  placeholder="5"
-                />
-              </div>
-            </div>
-          </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="area">Area / locality *</FieldLabel>
+                <Input id="area" name="area" value={formData.area} onChange={handleChange}
+                  required placeholder="Andheri West, Koramangala" />
+                <FieldDescription>Helps nearby renters find you.</FieldDescription>
+              </Field>
 
-          <div className="form-section">
-            <h2>Location & Pricing</h2>
-            
-            <div className="form-row">
-              <div className="form-group full-width">
-                <label htmlFor="location">City *</label>
-                <div className="location-input-group">
-                  <select
-                    id="location"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Select a city</option>
-                    {indianCities.map(city => (
-                      <option key={city.name} value={city.name}>
-                        {city.name}, {city.state}
-                      </option>
-                    ))}
-                  </select>
-                  <button 
-                    type="button" 
-                    className="use-location-btn"
-                    onClick={handleUseMyLocation}
-                    disabled={detectingLocation}
-                  >
-                    {detectingLocation ? '📍 Detecting...' : '📍 Use My Location'}
-                  </button>
-                </div>
-                <small>Select the city where your car is located</small>
-                {detectedCity && (
-                  <div className="detected-location-info">
-                    ✓ Location detected near {detectedCity.name}, {detectedCity.state} ({detectedCity.distance.toFixed(1)}km away)
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="area">Area/Locality *</label>
-                <input
-                  type="text"
-                  id="area"
-                  name="area"
-                  value={formData.area}
-                  onChange={handleChange}
-                  required
-                  placeholder="e.g., Andheri West, Koramangala"
-                />
-                <small>Specify the exact area for better search results</small>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="pricePerDay">Price Per Day (₹)</label>
-                <input
-                  type="number"
-                  id="pricePerDay"
-                  name="pricePerDay"
-                  value={formData.pricePerDay}
-                  onChange={handleChange}
-                  min="0"
-                  placeholder="500"
-                  disabled={formData.availableFor === 'exchange'}
-                />
-                <small>Leave empty if only for exchange</small>
-              </div>
+              <Field data-disabled={formData.availableFor === 'exchange' ? true : undefined}>
+                <FieldLabel htmlFor="pricePerDay">Price per day (₹)</FieldLabel>
+                <Input type="number" id="pricePerDay" name="pricePerDay"
+                  value={formData.pricePerDay} onChange={handleChange} min="0" placeholder="500"
+                  disabled={formData.availableFor === 'exchange'} />
+                <FieldDescription>Leave empty if exchange-only.</FieldDescription>
+              </Field>
             </div>
 
             {formData.location && formData.coordinates.lat && (
-              <div className="location-info">
-                <p className="info-text">
-                  ✓ Location coordinates set: {formData.coordinates.lat.toFixed(4)}, {formData.coordinates.lon.toFixed(4)}
-                </p>
-                <small>This helps users find cars near them</small>
-              </div>
+              <Alert>
+                <CheckCircle2Icon />
+                <AlertTitle>
+                  Coordinates set: {formData.coordinates.lat.toFixed(4)},{' '}
+                  {formData.coordinates.lon.toFixed(4)}
+                </AlertTitle>
+                <AlertDescription>This helps users find cars near them.</AlertDescription>
+              </Alert>
             )}
-          </div>
+          </FieldGroup>
+        </Section>
 
-          <div className="form-section">
-            <h2>Availability</h2>
-            
-            <div className="form-group">
-              <label>Available For *</label>
-              <div className="radio-group">
-                <label>
-                  <input
-                    type="radio"
-                    name="availableFor"
-                    value="rent"
-                    checked={formData.availableFor === 'rent'}
-                    onChange={handleChange}
-                  />
-                  Rent Only
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="availableFor"
-                    value="exchange"
-                    checked={formData.availableFor === 'exchange'}
-                    onChange={handleChange}
-                  />
-                  Exchange Only
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="availableFor"
-                    value="both"
-                    checked={formData.availableFor === 'both'}
-                    onChange={handleChange}
-                  />
-                  Both
-                </label>
-              </div>
-            </div>
-          </div>
+        {/* ---------- Availability ---------- */}
+        <Section step="3" title="Availability" description="How do you want to share this car?">
+          <Field>
+            <FieldLabel htmlFor="availableFor">Available for *</FieldLabel>
+            <ToggleGroup
+              id="availableFor"
+              type="single"
+              variant="outline"
+              className="w-full *:flex-1"
+              value={formData.availableFor}
+              onValueChange={(value) => value && handleSelect('availableFor')(value)}
+            >
+              {availabilityOptions.map(({ value, title }) => (
+                <ToggleGroupItem key={value} value={value}>{title}</ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </Field>
+        </Section>
 
-          <div className="form-section">
-            <h2>Description</h2>
-            
-            <div className="form-group">
-              <label htmlFor="description">Car Description *</label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                required
-                placeholder="Describe your car, its condition, and any special features..."
-              />
-            </div>
-          </div>
+        {/* ---------- Description ---------- */}
+        <Section step="4" title="Description" description="Set expectations up front.">
+          <Field>
+            <FieldLabel htmlFor="description">Car description *</FieldLabel>
+            <Textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              required
+              placeholder="Describe your car, its condition, and any special features…"
+              className="min-h-28"
+            />
+          </Field>
+        </Section>
 
-          <div className="form-section">
-            <h2>Features</h2>
-            
-            <div className="features-grid">
+        {/* ---------- Features ---------- */}
+        <Section step="5" title="Features" description="Pick everything the car has.">
+          <FieldSet>
+            <FieldLegend className="sr-only">Features</FieldLegend>
+            <div className="grid gap-3 sm:grid-cols-2">
               {featureOptions.map(feature => (
-                <label key={feature} className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    value={feature}
-                    checked={formData.features.includes(feature)}
-                    onChange={handleChange}
-                  />
-                  {feature}
-                </label>
+                <FieldLabel key={feature} htmlFor={`feature-${feature}`}>
+                  <Field orientation="horizontal">
+                    <Checkbox
+                      id={`feature-${feature}`}
+                      checked={formData.features.includes(feature)}
+                      onCheckedChange={toggleFeature(feature)}
+                    />
+                    <FieldTitle>{feature}</FieldTitle>
+                  </Field>
+                </FieldLabel>
               ))}
             </div>
-          </div>
+          </FieldSet>
+        </Section>
 
-          <div className="form-section">
-            <h2>Images</h2>
-            
-            <div className="form-group">
-              <label htmlFor="images">Upload Car Images</label>
-              <input
-                type="file"
-                id="images"
-                name="images"
-                multiple
-                accept="image/*"
-                onChange={handleImageChange}
-              />
-              <small>You can upload multiple images</small>
-            </div>
-          </div>
+        {/* ---------- Images ---------- */}
+        <Section step="6" title="Images" description="Listings with photos get far more requests.">
+          <FieldLabel
+            htmlFor="images"
+            className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-10 text-center transition-colors hover:bg-muted"
+          >
+            <ImagePlus className="size-6 text-muted-foreground" />
+            <span className="font-medium">Click to upload car images</span>
+            <span className="text-xs text-muted-foreground">
+              PNG or JPG — you can select multiple
+            </span>
+            <input
+              type="file" id="images" name="images"
+              multiple accept="image/*"
+              onChange={handleImageChange}
+              className="sr-only"
+            />
+          </FieldLabel>
 
-          <button type="submit" className="btn btn-primary btn-large" disabled={loading}>
-            {loading ? 'Adding Car...' : 'List My Car'}
-          </button>
-        </form>
-      </div>
+          {formData.images.length > 0 && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              {formData.images.length} image{formData.images.length === 1 ? '' : 's'} selected
+            </p>
+          )}
+        </Section>
+
+        <Button type="submit" size="lg" className="w-full" disabled={loading}>
+          {loading && <Spinner data-icon="inline-start" />}
+          {loading ? 'Adding car…' : 'List my car'}
+        </Button>
+      </form>
     </div>
   );
 };

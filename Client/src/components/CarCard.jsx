@@ -1,74 +1,88 @@
-import { useNavigate } from 'react-router-dom';
-import { formatDistance } from '../utils/locationUtils';
+import { Link } from 'react-router-dom';
+import { formatDistance } from '@/utils/locationUtils';
+import { carImageSrc, handleImageError } from '@/utils/carImage';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardAction } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Fuel, Gauge, MapPin, Star, UserRound } from 'lucide-react';
-import './CarCard.css';
 
 const CarCard = ({ car, userLocation }) => {
-  const navigate = useNavigate();
-
-  const handleCardClick = () => {
-    navigate(`/cars/${car._id || car.id}`);
-  };
-
-  // Get owner name from populated owner or fallback
   const ownerName = car.owner?.fullName || car.owner?.username || 'Unknown';
-  
-  // Get default image if not provided
-  const carImage = car.images?.[0] || `https://via.placeholder.com/300x200/667eea/ffffff?text=${encodeURIComponent(car.brand + ' ' + car.model)}`;
-  
+  const label = `${car.brand} ${car.model}`;
+  const showsPrice = car.availableFor === 'rent' || car.availableFor === 'both';
+
   return (
-    <div className="car-card" onClick={handleCardClick}>
-      <div className="car-image">
-        <img 
-          src={carImage} 
-          alt={`${car.brand} ${car.model}`}
-          onError={(e) => {
-            console.error('❌ Image failed to load:', carImage);
-            e.target.src = `https://via.placeholder.com/300x200/667eea/ffffff?text=${encodeURIComponent(car.brand + ' ' + car.model)}`;
-          }}
-        />
-        <div className="car-badge">
-          {car.availableFor === 'rent' && <span className="badge rent">For Rent</span>}
-          {car.availableFor === 'exchange' && <span className="badge exchange">For Exchange</span>}
-          {car.availableFor === 'both' && (
-            <>
-              <span className="badge rent">Rent</span>
-              <span className="badge exchange">Exchange</span>
-            </>
+    <Card className="relative transition-shadow hover:ring-foreground/20">
+      <img
+        src={carImageSrc(car)}
+        alt={label}
+        loading="lazy"
+        onError={handleImageError(label)}
+        className="aspect-16/10 w-full object-cover"
+      />
+
+      <CardHeader>
+        <CardTitle className="truncate">
+          {/* Overlay turns the whole card into one link target. */}
+          <Link to={`/cars/${car._id || car.id}`} className="after:absolute after:inset-0">
+            {label}
+          </Link>
+        </CardTitle>
+
+        {showsPrice && (
+          <CardAction className="text-right">
+            <div className="font-heading text-lg leading-none font-semibold">₹{car.pricePerDay}</div>
+            <div className="mt-1 text-xs text-muted-foreground">per day</div>
+          </CardAction>
+        )}
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-1.5">
+          {(car.availableFor === 'rent' || car.availableFor === 'both') && (
+            <Badge variant="secondary">Rent</Badge>
+          )}
+          {(car.availableFor === 'exchange' || car.availableFor === 'both') && (
+            <Badge variant="outline">Exchange</Badge>
+          )}
+          {car.distance !== undefined && userLocation && (
+            <Badge variant="outline">
+              <MapPin />
+              {formatDistance(car.distance)}
+            </Badge>
           )}
         </div>
-        {car.distance !== undefined && userLocation && (
-          <div className="distance-badge">
-            📍 {formatDistance(car.distance)} away
-          </div>
-        )}
-      </div>
 
-      <div className="car-info">
-        <h3 className="car-title">{car.brand} {car.model}</h3>
-        <p className="car-year">
-          <Gauge size={14} />
-          {car.year}
-          <span className="dot">•</span>
-          <Fuel size={14} />
-          {car.fuelType || 'N/A'}
-        </p>
-        
-        {(car.availableFor === 'rent' || car.availableFor === 'both') && (
-          <p className="car-price">₹{car.pricePerDay}/day</p>
-        )}
-        
-        <div className="car-details">
-          <span className="car-location">
-            <MapPin size={14} />
-            {car.area ? `${car.area}, ` : ''}{car.location}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <Gauge className="size-3.5" />
+            {car.year}
           </span>
-          <span className="car-rating"><Star size={14} /> {car.rating?.toFixed(1) || '0.0'}</span>
+          <span className="inline-flex items-center gap-1 capitalize">
+            <Fuel className="size-3.5" />
+            {car.fuelType || 'N/A'}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Star className="size-3.5" />
+            {car.rating?.toFixed(1) || '0.0'}
+          </span>
         </div>
 
-        <p className="car-owner"><UserRound size={14} /> {ownerName}</p>
-      </div>
-    </div>
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <MapPin className="size-3.5 shrink-0" />
+          <span className="truncate">
+            {car.area ? `${car.area}, ` : ''}
+            {car.location}
+          </span>
+        </p>
+      </CardContent>
+
+      <CardFooter>
+        <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+          <UserRound className="size-3.5 shrink-0" />
+          <span className="truncate">{ownerName}</span>
+        </span>
+      </CardFooter>
+    </Card>
   );
 };
 
