@@ -1,25 +1,23 @@
 # DriveShare - Frontend
 
-A modern car rental and exchange platform built with React and Vite.
+A modern car rental platform built with React and Vite.
 
 ## Features
 
 ### For Car Owners:
-- List your car for rent or exchange
-- Manage bookings and exchange requests
+- List your car for rent
+- Manage bookings
 - Set your own pricing
 - View earnings and statistics
 
 ### For Renters:
 - Browse available cars
 - Book cars for specific dates
-- Request car exchanges with other enthusiasts
 - View car details, reviews, and ratings
 
 ### Key Features:
-- **Dual Mode**: Rent cars OR exchange cars with fellow enthusiasts
 - **User Dashboard**: Manage your cars, bookings, and requests
-- **Real-time Updates**: Track booking status and exchange requests
+- **Real-time Updates**: Track booking status and requests
 - **Secure Authentication**: JWT-based authentication
 - **Responsive Design**: Works on all devices
 
@@ -106,10 +104,10 @@ Client/
 ### Protected Pages (Require Login):
 - **Dashboard** - User dashboard with overview and stats
 - **Add Car** - List a new car
-- **Booking Page** - Complete booking or exchange request
+- **Booking Page** - Complete a booking
 - **My Cars** - Manage your listed cars
 - **My Bookings** - View your booking history
-- **Received Requests** - Manage incoming booking/exchange requests
+- **Received Requests** - Manage incoming booking requests
 
 ## Features to Implement (Backend Required)
 
@@ -119,7 +117,6 @@ The following features are currently using dummy data and need backend integrati
 - [ ] Fetch real car data from API
 - [ ] Create and manage car listings
 - [ ] Handle booking requests
-- [ ] Process exchange requests
 - [ ] Upload car images to cloud storage
 - [ ] User profile management
 - [ ] Reviews and ratings system
@@ -135,7 +132,7 @@ Example usage:
 import { carAPI } from './utils/apiService';
 
 // Get all cars
-const cars = await carAPI.getAllCars({ availableFor: 'rent' });
+const cars = await carAPI.getAllCars();
 
 // Get car by ID
 const car = await carAPI.getCarById(carId);

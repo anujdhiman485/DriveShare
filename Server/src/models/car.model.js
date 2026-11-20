@@ -85,11 +85,6 @@ const carSchema = new Schema(
         required: true,
       },
     },
-    availableFor: {
-      type: String,
-      enum: ["rent", "exchange", "both"],
-      default: "rent",
-    },
     isAvailable: {
       type: Boolean,
       default: true,
@@ -126,7 +121,6 @@ const carSchema = new Schema(
 // Create geospatial index for location-based queries
 carSchema.index({ coordinates: "2dsphere" });
 carSchema.index({ location: 1 });
-carSchema.index({ availableFor: 1 });
 carSchema.index({ isAvailable: 1 });
 
 carSchema.plugin(mongooseAggregatePaginate);

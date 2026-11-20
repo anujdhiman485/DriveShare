@@ -40,14 +40,12 @@ app.use(cookieParser())
 import authRouter from './routes/auth.routes.js'
 import carRouter from './routes/car.routes.js'
 import bookingRouter from './routes/booking.routes.js'
-import exchangeRouter from './routes/exchange.routes.js'
 import reviewRouter from './routes/review.routes.js'
 
 // Routes
 app.use('/api/v1/auth', authRouter)
 app.use('/api/v1/cars', carRouter)
 app.use('/api/v1/bookings', bookingRouter)
-app.use('/api/v1/exchanges', exchangeRouter)
 app.use('/api/v1/reviews', reviewRouter)
 
 // Health check

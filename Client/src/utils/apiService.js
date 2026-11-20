@@ -31,17 +31,6 @@ export const bookingAPI = {
   cancelBooking: (id, reason) => api.patch(`/bookings/${id}/cancel`, { reason }),
 };
 
-// Exchange APIs
-export const exchangeAPI = {
-  createExchangeRequest: (exchangeData) => api.post('/exchanges/create', exchangeData),
-  getMyExchangeRequests: (params) => api.get('/exchanges/my-requests', { params }),
-  getReceivedExchangeRequests: (params) => api.get('/exchanges/received', { params }),
-  getExchangeById: (id) => api.get(`/exchanges/${id}`),
-  updateExchangeStatus: (id, status, ownerResponse) => 
-    api.patch(`/exchanges/${id}/status`, { status, ownerResponse }),
-  cancelExchange: (id, reason) => api.patch(`/exchanges/${id}/cancel`, { reason }),
-};
-
 // Review APIs
 export const reviewAPI = {
   createReview: (reviewData) => api.post('/reviews/create', reviewData),

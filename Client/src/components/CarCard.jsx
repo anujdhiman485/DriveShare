@@ -8,8 +8,6 @@ import { Fuel, Gauge, MapPin, Star, UserRound } from 'lucide-react';
 const CarCard = ({ car, userLocation }) => {
   const ownerName = car.owner?.fullName || car.owner?.username || 'Unknown';
   const label = `${car.brand} ${car.model}`;
-  const showsPrice = car.availableFor === 'rent' || car.availableFor === 'both';
-
   return (
     <Card className="relative transition-shadow hover:ring-foreground/20">
       <img
@@ -28,22 +26,15 @@ const CarCard = ({ car, userLocation }) => {
           </Link>
         </CardTitle>
 
-        {showsPrice && (
-          <CardAction className="text-right">
-            <div className="font-heading text-lg leading-none font-semibold">₹{car.pricePerDay}</div>
-            <div className="mt-1 text-xs text-muted-foreground">per day</div>
-          </CardAction>
-        )}
+        <CardAction className="text-right">
+          <div className="font-heading text-lg leading-none font-semibold">₹{car.pricePerDay}</div>
+          <div className="mt-1 text-xs text-muted-foreground">per day</div>
+        </CardAction>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-3">
         <div className="flex flex-wrap gap-1.5">
-          {(car.availableFor === 'rent' || car.availableFor === 'both') && (
-            <Badge variant="secondary">Rent</Badge>
-          )}
-          {(car.availableFor === 'exchange' || car.availableFor === 'both') && (
-            <Badge variant="outline">Exchange</Badge>
-          )}
+          <Badge variant="secondary">Rent</Badge>
           {car.distance !== undefined && userLocation && (
             <Badge variant="outline">
               <MapPin />

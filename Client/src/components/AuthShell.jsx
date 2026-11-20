@@ -25,7 +25,7 @@ const AuthShell = ({ title, subtitle, children, footer }) => (
       </h2>
 
       <p className="mt-4 max-w-md text-muted-foreground">
-        One account to rent standout cars nearby, list your own, and arrange exchanges with people
+        One account to rent standout cars nearby and list your own.
         who care about them as much as you do.
       </p>
 

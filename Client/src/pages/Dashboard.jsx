@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { carAPI, bookingAPI, exchangeAPI } from '@/utils/apiService';
+import { carAPI, bookingAPI } from '@/utils/apiService';
 import { statusBadgeVariant } from '@/utils/status';
 import { EmptyState } from '@/components/StateMessage';
 import gsap from 'gsap';
@@ -26,7 +26,6 @@ import {
   CirclePlus,
   Inbox,
   LogOut,
-  Repeat,
   RefreshCw,
   Search,
   X
@@ -36,8 +35,7 @@ const tabs = [
   { id: 'overview', label: 'Overview' },
   { id: 'myCars', label: 'My Cars' },
   { id: 'myBookings', label: 'My Bookings' },
-  { id: 'receivedBookings', label: 'Received' },
-  { id: 'exchanges', label: 'Exchanges' }
+  { id: 'receivedBookings', label: 'Received' }
 ];
 
 const Dashboard = () => {
@@ -48,8 +46,6 @@ const Dashboard = () => {
   const [myCars, setMyCars] = useState([]);
   const [myBookings, setMyBookings] = useState([]);
   const [receivedBookings, setReceivedBookings] = useState([]);
-  const [exchangeRequests, setExchangeRequests] = useState([]);
-  const [myExchanges, setMyExchanges] = useState([]);
 
   const fetchDashboardData = useCallback(async () => {
     setRefreshing(true);
@@ -63,11 +59,6 @@ const Dashboard = () => {
       const receivedResponse = await bookingAPI.getReceivedBookings();
       if (receivedResponse.success) setReceivedBookings(receivedResponse.data || []);
 
-      const exchangeResponse = await exchangeAPI.getReceivedExchangeRequests();
-      if (exchangeResponse.success) setExchangeRequests(exchangeResponse.data || []);
-
-      const myExchangeResponse = await exchangeAPI.getMyExchangeRequests();
-      if (myExchangeResponse.success) setMyExchanges(myExchangeResponse.data || []);
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
       toast.error('Could not load your dashboard', { description: error.message });
@@ -135,25 +126,13 @@ const Dashboard = () => {
     }
   };
 
-  const handleExchangeStatus = async (exchangeId, status) => {
-    try {
-      await exchangeAPI.updateExchangeStatus(exchangeId, status);
-      toast.success(`Exchange request ${status}`);
-      fetchDashboardData();
-    } catch (error) {
-      console.error('Error updating exchange:', error);
-      toast.error('Failed to update exchange request', { description: error.message });
-    }
-  };
-
   const formatRange = (start, end) =>
     `${new Date(start).toLocaleDateString()} to ${new Date(end).toLocaleDateString()}`;
 
   const stats = [
     { icon: CarFront, value: myCars.length, label: 'My cars', tab: 'myCars' },
     { icon: CalendarRange, value: myBookings.length, label: 'My bookings', tab: 'myBookings' },
-    { icon: Inbox, value: receivedBookings.length, label: 'Received requests', tab: 'receivedBookings' },
-    { icon: Repeat, value: exchangeRequests.length, label: 'Exchange requests', tab: 'exchanges' }
+    { icon: Inbox, value: receivedBookings.length, label: 'Received requests', tab: 'receivedBookings' }
   ];
 
   return (
@@ -164,7 +143,7 @@ const Dashboard = () => {
             My dashboard
           </h1>
           <p className="mt-2 text-muted-foreground">
-            Manage your cars, bookings, and exchange requests.
+            Manage your cars and bookings.
           </p>
         </div>
 
@@ -220,7 +199,7 @@ const Dashboard = () => {
                   </ItemMedia>
                   <ItemContent>
                     <ItemTitle>Add a new car</ItemTitle>
-                    <ItemDescription>List a car for rent or exchange</ItemDescription>
+                    <ItemDescription>List a car for rent</ItemDescription>
                   </ItemContent>
                   <ItemActions>
                     <ArrowRight className="size-4 text-muted-foreground" />
@@ -272,7 +251,7 @@ const Dashboard = () => {
                         {car.isAvailable ? 'Available' : 'Unavailable'}
                       </Badge>
                       <Badge variant="outline">
-                        {car.availableFor === 'both' ? 'Rent & exchange' : car.availableFor}
+                        Rent
                       </Badge>
                       <Badge variant="outline">
                         ⭐ {car.rating.toFixed(1)} ({car.totalRatings})
@@ -298,7 +277,7 @@ const Dashboard = () => {
               <EmptyState
                 icon={CarFront}
                 title="No cars listed yet"
-                description="List your first car and start earning or arranging exchanges."
+                description="List your first car and start earning."
               >
                 <Button asChild>
                   <Link to="/add-car">Add your first car</Link>
@@ -349,48 +328,6 @@ const Dashboard = () => {
             </ItemGroup>
           </section>
 
-          <section>
-            <h2 className="font-heading text-xl font-semibold tracking-tight">
-              My exchange requests
-            </h2>
-            <ItemGroup className="mt-5 gap-4">
-              {myExchanges.length > 0 ? (
-                myExchanges.map(exchange => (
-                  <Item key={exchange._id} variant="outline" asChild>
-                    <Link to={`/exchange/${exchange._id}`}>
-                      <ItemContent>
-                        <ItemTitle>
-                          {exchange.requestedCar?.brand} {exchange.requestedCar?.model}
-                        </ItemTitle>
-                        <ItemDescription>
-                          You offered: {exchange.offeredCar?.brand} {exchange.offeredCar?.model} —{' '}
-                          {formatRange(exchange.startDate, exchange.endDate)}
-                        </ItemDescription>
-                        <div className="mt-2">
-                          <Badge variant={statusBadgeVariant(exchange.status)}>
-                            {exchange.status}
-                          </Badge>
-                        </div>
-                      </ItemContent>
-                      <ItemActions>
-                        <ArrowRight className="size-4 text-muted-foreground" />
-                      </ItemActions>
-                    </Link>
-                  </Item>
-                ))
-              ) : (
-                <EmptyState
-                  icon={Repeat}
-                  title="No exchange requests sent"
-                  description="Find a car marked for exchange and offer a swap."
-                >
-                  <Button variant="outline" asChild>
-                    <Link to="/cars">Browse cars</Link>
-                  </Button>
-                </EmptyState>
-              )}
-            </ItemGroup>
-          </section>
         </TabsContent>
 
         {/* ---------- Received bookings ---------- */}
@@ -443,66 +380,6 @@ const Dashboard = () => {
           </ItemGroup>
         </TabsContent>
 
-        {/* ---------- Exchange requests ---------- */}
-        <TabsContent value="exchanges" className="mt-6">
-          <h2 className="font-heading text-xl font-semibold tracking-tight">
-            Car exchange requests
-          </h2>
-          <ItemGroup className="mt-5 gap-4">
-            {exchangeRequests.length > 0 ? (
-              exchangeRequests.map(request => (
-                <Item key={request._id} variant="outline" className="flex-wrap">
-                  <ItemContent>
-                    <ItemTitle>
-                      Exchange request from {request.requester?.fullName || 'a user'}
-                    </ItemTitle>
-                    <ItemDescription className="flex flex-col gap-0.5">
-                      <span>
-                        Your car: {request.requestedCar?.brand} {request.requestedCar?.model}{' '}
-                        ({request.requestedCar?.year})
-                      </span>
-                      <span>
-                        Their car: {request.offeredCar?.brand} {request.offeredCar?.model}{' '}
-                        ({request.offeredCar?.year})
-                      </span>
-                      <span>
-                        {formatRange(request.startDate, request.endDate)} • {request.totalDays} days
-                      </span>
-                      {request.requester?.phone && <span>Phone: {request.requester.phone}</span>}
-                      {request.message && <span className="italic">“{request.message}”</span>}
-                    </ItemDescription>
-                    <div className="mt-2">
-                      <Badge variant={statusBadgeVariant(request.status)}>{request.status}</Badge>
-                    </div>
-                  </ItemContent>
-
-                  {request.status === 'pending' && (
-                    <ItemActions>
-                      <Button size="sm" onClick={() => handleExchangeStatus(request._id, 'accepted')}>
-                        <Check data-icon="inline-start" />
-                        Accept
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleExchangeStatus(request._id, 'rejected')}
-                      >
-                        <X data-icon="inline-start" />
-                        Reject
-                      </Button>
-                    </ItemActions>
-                  )}
-                </Item>
-              ))
-            ) : (
-              <EmptyState
-                icon={Repeat}
-                title="No exchange requests"
-                description="Swap offers for your cars will show up here."
-              />
-            )}
-          </ItemGroup>
-        </TabsContent>
       </Tabs>
     </div>
   );

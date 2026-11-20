@@ -10,7 +10,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Field,
   FieldDescription,
@@ -32,12 +31,6 @@ import {
 const featureOptions = [
   'AC', 'Power Steering', 'ABS', 'Airbags', 'Music System',
   'GPS', 'Bluetooth', 'Sunroof', 'Parking Sensors', 'Reverse Camera'
-];
-
-const availabilityOptions = [
-  { value: 'rent', title: 'Rent only' },
-  { value: 'exchange', title: 'Exchange only' },
-  { value: 'both', title: 'Both' }
 ];
 
 /** Card wrapper for one step of the listing form. */
@@ -71,7 +64,6 @@ const AddCar = () => {
     coordinates: { lat: null, lon: null },
     description: '',
     features: [],
-    availableFor: 'rent',
     images: []
   });
 
@@ -166,7 +158,7 @@ const AddCar = () => {
       return;
     }
 
-    if (formData.availableFor !== 'exchange' && !formData.pricePerDay) {
+    if (!formData.pricePerDay) {
       setError('Please enter price per day for rent');
       return;
     }
@@ -198,13 +190,12 @@ const AddCar = () => {
         transmission: formData.transmission,
         fuelType: formData.fuelType,
         seats: parseInt(formData.seating),
-        pricePerDay: formData.availableFor === 'exchange' ? 0 : parseFloat(formData.pricePerDay),
+        pricePerDay: parseFloat(formData.pricePerDay),
         description: formData.description.trim(),
         features: formData.features,
         location: formData.location,
         area: formData.area.trim(),
         coordinates: formData.coordinates,
-        availableFor: formData.availableFor
       };
 
       const response = await carAPI.createCar(carData);
@@ -231,7 +222,7 @@ const AddCar = () => {
           List your car
         </h1>
         <p className="mt-2 text-muted-foreground">
-          Share your car and earn money, or exchange with fellow enthusiasts.
+          Share your car and earn money with a straightforward rental listing.
         </p>
       </header>
 
@@ -364,12 +355,12 @@ const AddCar = () => {
                 <FieldDescription>Helps nearby renters find you.</FieldDescription>
               </Field>
 
-              <Field data-disabled={formData.availableFor === 'exchange' ? true : undefined}>
+              <Field>
                 <FieldLabel htmlFor="pricePerDay">Price per day (₹)</FieldLabel>
                 <Input type="number" id="pricePerDay" name="pricePerDay"
                   value={formData.pricePerDay} onChange={handleChange} min="0" placeholder="500"
-                  disabled={formData.availableFor === 'exchange'} />
-                <FieldDescription>Leave empty if exchange-only.</FieldDescription>
+                  required />
+                <FieldDescription>Set the daily rental price for your car.</FieldDescription>
               </Field>
             </div>
 
@@ -386,27 +377,8 @@ const AddCar = () => {
           </FieldGroup>
         </Section>
 
-        {/* ---------- Availability ---------- */}
-        <Section step="3" title="Availability" description="How do you want to share this car?">
-          <Field>
-            <FieldLabel htmlFor="availableFor">Available for *</FieldLabel>
-            <ToggleGroup
-              id="availableFor"
-              type="single"
-              variant="outline"
-              className="w-full *:flex-1"
-              value={formData.availableFor}
-              onValueChange={(value) => value && handleSelect('availableFor')(value)}
-            >
-              {availabilityOptions.map(({ value, title }) => (
-                <ToggleGroupItem key={value} value={value}>{title}</ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </Field>
-        </Section>
-
         {/* ---------- Description ---------- */}
-        <Section step="4" title="Description" description="Set expectations up front.">
+        <Section step="3" title="Description" description="Set expectations up front.">
           <Field>
             <FieldLabel htmlFor="description">Car description *</FieldLabel>
             <Textarea
@@ -422,7 +394,7 @@ const AddCar = () => {
         </Section>
 
         {/* ---------- Features ---------- */}
-        <Section step="5" title="Features" description="Pick everything the car has.">
+        <Section step="4" title="Features" description="Pick everything the car has.">
           <FieldSet>
             <FieldLegend className="sr-only">Features</FieldLegend>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -443,7 +415,7 @@ const AddCar = () => {
         </Section>
 
         {/* ---------- Images ---------- */}
-        <Section step="6" title="Images" description="Listings with photos get far more requests.">
+        <Section step="5" title="Images" description="Listings with photos get far more requests.">
           <FieldLabel
             htmlFor="images"
             className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-10 text-center transition-colors hover:bg-muted"

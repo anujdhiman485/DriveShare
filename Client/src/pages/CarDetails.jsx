@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Item, ItemContent, ItemDescription, ItemTitle } from '@/components/ui/item';
 import {
@@ -27,7 +26,6 @@ const CarDetails = () => {
   const navigate = useNavigate();
   const [car, setCar] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [bookingType, setBookingType] = useState('rent'); // rent or exchange
 
   useEffect(() => {
     const fetchCarDetails = async () => {
@@ -58,11 +56,7 @@ const CarDetails = () => {
       return;
     }
 
-    // availableFor === 'exchange' cars can only ever be exchanged
-    const type =
-      car.availableFor === 'exchange' || bookingType === 'exchange' ? 'exchange' : 'rent';
-
-    navigate(`/book/${id}?type=${type}`, { state: { car, type } });
+    navigate(`/book/${id}`, { state: { car, type: 'rent' } });
   };
 
   if (loading) {
@@ -84,7 +78,6 @@ const CarDetails = () => {
   }
 
   const label = `${car.brand} ${car.model}`;
-  const isExchangeOnly = car.availableFor === 'exchange';
   const ownerName = car.owner?.fullName || 'Car owner';
   const specs = [
     { icon: Fuel, label: 'Fuel type', value: car.fuelType },
@@ -110,12 +103,7 @@ const CarDetails = () => {
           />
 
           <div className="mt-7 flex flex-wrap gap-2">
-            {(car.availableFor === 'rent' || car.availableFor === 'both') && (
-              <Badge variant="secondary">For rent</Badge>
-            )}
-            {(car.availableFor === 'exchange' || car.availableFor === 'both') && (
-              <Badge variant="outline">For exchange</Badge>
-            )}
+            <Badge variant="secondary">For rent</Badge>
           </div>
 
           <h1 className="font-heading mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -197,37 +185,15 @@ const CarDetails = () => {
         <aside className="flex flex-col gap-5 lg:sticky lg:top-24 lg:self-start">
           <Card className="[--card-spacing:--spacing(5)]">
             <CardContent className="flex flex-col gap-5">
-              {isExchangeOnly ? (
-                <div>
-                  <Badge variant="outline">Exchange only</Badge>
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    This owner is looking to swap keys rather than rent out.
-                  </p>
-                </div>
-              ) : (
-                <div className="flex items-baseline gap-2">
-                  <span className="font-heading text-4xl font-semibold tracking-tight">
-                    ₹{car.pricePerDay}
-                  </span>
-                  <span className="text-sm text-muted-foreground">per day</span>
-                </div>
-              )}
-
-              {car.availableFor === 'both' && (
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  className="w-full *:flex-1"
-                  value={bookingType}
-                  onValueChange={(value) => value && setBookingType(value)}
-                >
-                  <ToggleGroupItem value="rent">Rent</ToggleGroupItem>
-                  <ToggleGroupItem value="exchange">Exchange</ToggleGroupItem>
-                </ToggleGroup>
-              )}
+              <div className="flex items-baseline gap-2">
+                <span className="font-heading text-4xl font-semibold tracking-tight">
+                  ₹{car.pricePerDay}
+                </span>
+                <span className="text-sm text-muted-foreground">per day</span>
+              </div>
 
               <Button size="lg" className="w-full" onClick={handleBooking}>
-                {isExchangeOnly || bookingType === 'exchange' ? 'Request exchange' : 'Book now'}
+                Book now
               </Button>
 
               <p className="text-center text-xs text-muted-foreground">

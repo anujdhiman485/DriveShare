@@ -62,7 +62,7 @@ const Login = () => {
   return (
     <AuthShell
       title="Welcome back"
-      subtitle="Log in to manage your bookings, cars, and exchanges."
+      subtitle="Log in to manage your bookings and cars."
       footer={
         <>
           Don&apos;t have an account?{' '}

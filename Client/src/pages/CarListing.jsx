@@ -23,7 +23,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Slider } from '@/components/ui/slider';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import {
@@ -35,18 +34,11 @@ import {
   SelectValue
 } from '@/components/ui/select';
 
-const filters = [
-  { value: 'all', label: 'All Cars' },
-  { value: 'rent', label: 'For Rent' },
-  { value: 'exchange', label: 'For Exchange' }
-];
-
 const ALL_CITIES = '__all__';
 
 const CarListing = () => {
   const [cars, setCars] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, rent, exchange
   const [searchTerm, setSearchTerm] = useState('');
   const [userLocation, setUserLocation] = useState(null);
   const [nearestCity, setNearestCity] = useState(null);
@@ -106,11 +98,6 @@ const CarListing = () => {
         params.maxDistance = maxDistance;
       }
 
-      // Add filter
-      if (filter !== 'all') {
-        params.availableFor = filter;
-      }
-
       // Add search term
       if (searchTerm) {
         params.search = searchTerm;
@@ -163,7 +150,7 @@ const CarListing = () => {
       setCars([]);
       setLoading(false);
     }
-  }, [userLocation, selectedCity, maxDistance, filter, searchTerm, sortBy]);
+  }, [userLocation, selectedCity, maxDistance, searchTerm, sortBy]);
 
   useEffect(() => {
     // Don't auto-detect location on mount — the user opts in with the button.
@@ -183,10 +170,6 @@ const CarListing = () => {
 
   const filteredCars = cars.filter(car => {
     // Filter by availability type
-    const matchesFilter = filter === 'all' ||
-                         car.availableFor === filter ||
-                         car.availableFor === 'both';
-
     // Filter by search term
     const matchesSearch = car.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -205,7 +188,7 @@ const CarListing = () => {
       matchesCity = car.location.toLowerCase() === selectedCity.toLowerCase();
     }
 
-    return matchesFilter && matchesSearch && matchesDistance && matchesCity;
+    return matchesSearch && matchesDistance && matchesCity;
   });
 
   // Sort cars
@@ -243,7 +226,7 @@ const CarListing = () => {
           Browse available cars
         </h1>
         <p className="mt-2 text-muted-foreground">
-          Find your perfect ride or exchange cars with fellow enthusiasts.
+          Find your perfect ride from nearby owners.
         </p>
       </header>
 
@@ -346,19 +329,6 @@ const CarListing = () => {
         </InputGroup>
 
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            value={filter}
-            onValueChange={(value) => value && setFilter(value)}
-          >
-            {filters.map(({ value, label }) => (
-              <ToggleGroupItem key={value} value={value}>
-                {label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-
           <div className="flex items-center gap-2">
             <ArrowUpDown className="size-4 text-muted-foreground" />
             <Select value={sortBy} onValueChange={setSortBy}>

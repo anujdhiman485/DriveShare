@@ -3,11 +3,9 @@ import { useLayoutEffect, useRef } from 'react';
 import {
   ShieldCheck,
   Wallet,
-  Repeat,
   Search,
   MapPinned,
   CalendarCheck2,
-  Sparkles,
   ArrowRight
 } from 'lucide-react';
 import gsap from 'gsap';
@@ -23,11 +21,6 @@ const features = [
     copy: 'Locate options by area, radius, and car type without endless scrolling.'
   },
   {
-    icon: Repeat,
-    title: 'Easy Exchanges',
-    copy: 'Swap vehicles with compatible owners using a single streamlined flow.'
-  },
-  {
     icon: Wallet,
     title: 'Revenue for Hosts',
     copy: 'Turn idle days into earnings with transparent daily pricing.'
@@ -35,14 +28,14 @@ const features = [
   {
     icon: ShieldCheck,
     title: 'Verified Community',
-    copy: 'Profiles and requests are built around trust before keys are exchanged.'
+    copy: 'Profiles and booking requests are built around trust.'
   }
 ];
 
 const steps = [
   { n: '01', title: 'Sign Up', copy: 'Create your profile and verify your details.' },
   { n: '02', title: 'Browse or Host', copy: 'Find the right car or publish yours in minutes.' },
-  { n: '03', title: 'Connect', copy: 'Send booking or exchange requests with clear timelines.' },
+  { n: '03', title: 'Connect', copy: 'Send booking requests with clear timelines.' },
   { n: '04', title: 'Drive', copy: 'Finalize handoff and enjoy a smoother driving experience.' }
 ];
 
@@ -90,8 +83,8 @@ const Home = () => {
           </h1>
 
           <p data-hero className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
-            Rent standout cars from nearby owners or swap keys with enthusiasts who match your taste.
-            Built for smooth booking, flexible exchanges, and quick handoffs.
+            Rent standout cars from nearby owners who match your taste.
+            Built for smooth booking and quick handoffs.
           </p>
 
           <div data-hero className="mt-8 flex flex-wrap gap-3">
@@ -107,7 +100,7 @@ const Home = () => {
           </div>
 
           <div data-hero className="mt-8 flex flex-wrap gap-2">
-            {['Fast approvals', 'Trusted owners', 'Flexible exchanges'].map((label) => (
+            {['Fast approvals', 'Trusted owners', 'Clear pricing'].map((label) => (
               <Badge key={label} variant="outline">{label}</Badge>
             ))}
           </div>

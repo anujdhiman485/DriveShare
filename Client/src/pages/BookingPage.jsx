@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { bookingAPI, exchangeAPI, carAPI } from '@/utils/apiService';
+import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
+import { bookingAPI, carAPI } from '@/utils/apiService';
 import { carImageSrc, handleImageError } from '@/utils/carImage';
 import { PageLoader, PageMessage } from '@/components/StateMessage';
 import { AlertCircleIcon, ArrowLeft, CarFront } from 'lucide-react';
@@ -11,39 +11,23 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
-import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 
 const BookingPage = () => {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
 
   // location.state is only there when we arrived from the car details page; a refresh
   // or a shared link has to rebuild both the car and the booking type from the URL.
   const [car, setCar] = useState(location.state?.car || null);
   const [carLoading, setCarLoading] = useState(!location.state?.car);
-  const type =
-    searchParams.get('type') ||
-    location.state?.type ||
-    (car?.availableFor === 'exchange' ? 'exchange' : 'rent');
-
   const [bookingData, setBookingData] = useState({
     startDate: '',
     endDate: '',
-    message: '',
-    carForExchange: null
+    message: ''
   });
 
-  const [myCars, setMyCars] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -71,23 +55,6 @@ const BookingPage = () => {
     };
     fetchCar();
   }, [id, car]);
-
-  // Fetch user's cars if type is exchange
-  useEffect(() => {
-    const fetchMyCars = async () => {
-      if (type === 'exchange') {
-        try {
-          const response = await carAPI.getMyCars();
-          if (response.success) {
-            setMyCars(response.data || []);
-          }
-        } catch (err) {
-          console.error('Error fetching cars:', err);
-        }
-      }
-    };
-    fetchMyCars();
-  }, [type]);
 
   const handleChange = (e) => {
     setBookingData({
@@ -120,52 +87,23 @@ const BookingPage = () => {
       return;
     }
 
-    if (type === 'exchange' && !bookingData.carForExchange) {
-      setError('Please select a car for exchange');
-      setLoading(false);
-      return;
-    }
-
     try {
-      if (type === 'rent') {
-        // Create rental booking
-        const bookingPayload = {
-          carId: id,  // Match backend expectation
-          startDate: bookingData.startDate,
-          endDate: bookingData.endDate,
-          message: bookingData.message || ''
-        };
+      const bookingPayload = {
+        carId: id,
+        startDate: bookingData.startDate,
+        endDate: bookingData.endDate,
+        message: bookingData.message || ''
+      };
 
-        const response = await bookingAPI.createBooking(bookingPayload);
+      const response = await bookingAPI.createBooking(bookingPayload);
 
-        if (response.success && response.data?._id) {
-          navigate(`/booking/${response.data._id}`, {
-            replace: true,
-            state: { record: response.data }
-          });
-        } else {
-          setError(response.message || 'Failed to create booking');
-        }
+      if (response.success && response.data?._id) {
+        navigate(`/booking/${response.data._id}`, {
+          replace: true,
+          state: { record: response.data }
+        });
       } else {
-        // Create exchange request — backend expects the *Id suffixed field names
-        const exchangePayload = {
-          requestedCarId: id,
-          offeredCarId: bookingData.carForExchange,
-          startDate: bookingData.startDate,
-          endDate: bookingData.endDate,
-          message: bookingData.message || ''
-        };
-
-        const response = await exchangeAPI.createExchangeRequest(exchangePayload);
-
-        if (response.success && response.data?._id) {
-          navigate(`/exchange/${response.data._id}`, {
-            replace: true,
-            state: { record: response.data }
-          });
-        } else {
-          setError(response.message || 'Failed to create exchange request');
-        }
+        setError(response.message || 'Failed to create booking');
       }
     } catch (err) {
       console.error('Error creating booking:', err);
@@ -193,7 +131,6 @@ const BookingPage = () => {
     );
   }
 
-  const isRent = type === 'rent';
   const label = `${car.brand} ${car.model}`;
   const days = calculateDays();
 
@@ -205,9 +142,9 @@ const BookingPage = () => {
       </Button>
 
       <header>
-        <p className="text-sm text-muted-foreground">{isRent ? 'Rental' : 'Exchange'}</p>
+        <p className="text-sm text-muted-foreground">Rental</p>
         <h1 className="font-heading mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
-          {isRent ? 'Complete your booking' : 'Request a car exchange'}
+          Complete your booking
         </h1>
       </header>
 
@@ -229,8 +166,7 @@ const BookingPage = () => {
               </p>
             </CardContent>
 
-            {isRent && (
-              <CardContent className="flex flex-col gap-3">
+            <CardContent className="flex flex-col gap-3">
                 <Separator />
                 <p className="text-xs text-muted-foreground">Price details</p>
                 <div className="flex items-center justify-between text-sm">
@@ -245,8 +181,7 @@ const BookingPage = () => {
                   <span className="font-heading text-2xl font-semibold">₹{totalPrice}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">Pay the owner directly at pickup.</p>
-              </CardContent>
-            )}
+            </CardContent>
           </Card>
         </aside>
 
@@ -265,7 +200,7 @@ const BookingPage = () => {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="startDate">
-                      {isRent ? 'Start date' : 'Exchange start'}
+                      Start date
                     </FieldLabel>
                     <Input
                       type="date"
@@ -280,7 +215,7 @@ const BookingPage = () => {
 
                   <Field>
                     <FieldLabel htmlFor="endDate">
-                      {isRent ? 'End date' : 'Return by'}
+                      End date
                     </FieldLabel>
                     <Input
                       type="date"
@@ -293,37 +228,6 @@ const BookingPage = () => {
                     />
                   </Field>
                 </div>
-
-                {type === 'exchange' && (
-                  <Field>
-                    <FieldLabel htmlFor="carForExchange">Your car for the exchange</FieldLabel>
-                    <Select
-                      value={bookingData.carForExchange || ''}
-                      onValueChange={(value) =>
-                        setBookingData({ ...bookingData, carForExchange: value })
-                      }
-                    >
-                      <SelectTrigger id="carForExchange" className="w-full">
-                        <SelectValue placeholder="Choose a car…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {myCars.map(myCar => (
-                            <SelectItem key={myCar._id || myCar.id} value={myCar._id || myCar.id}>
-                              {myCar.brand} {myCar.model} ({myCar.year})
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    <FieldDescription>
-                      Don&apos;t have a car listed?{' '}
-                      <Link to="/add-car" className="font-medium text-foreground hover:underline">
-                        Add your car
-                      </Link>
-                    </FieldDescription>
-                  </Field>
-                )}
 
                 <Field>
                   <FieldLabel htmlFor="message">Message to owner (optional)</FieldLabel>
@@ -341,7 +245,7 @@ const BookingPage = () => {
                   {loading && <Spinner data-icon="inline-start" />}
                   {loading
                     ? 'Processing…'
-                    : isRent ? 'Confirm booking' : 'Send exchange request'}
+                    : 'Confirm booking'}
                 </Button>
               </FieldGroup>
             </form>

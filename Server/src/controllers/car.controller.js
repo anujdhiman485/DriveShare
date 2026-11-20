@@ -24,7 +24,6 @@ const createCar = asyncHandler(async (req, res) => {
     location,
     area,
     coordinates,
-    availableFor,
     registrationNumber,
   } = req.body;
 
@@ -37,7 +36,7 @@ const createCar = asyncHandler(async (req, res) => {
     !transmission ||
     !fuelType ||
     !seats ||
-    (availableFor !== 'exchange' && !pricePerDay) ||
+    !pricePerDay ||
     !location ||
     !coordinates
   ) {
@@ -81,7 +80,6 @@ const createCar = asyncHandler(async (req, res) => {
       type: "Point",
       coordinates: [coordinates.lon, coordinates.lat], // [longitude, latitude]
     },
-    availableFor: availableFor || "rent",
     registrationNumber: registrationNumber || "",
   });
 
@@ -99,7 +97,6 @@ const getAllCars = asyncHandler(async (req, res) => {
     lon,
     maxDistance,
     city,
-    availableFor,
     type,
     transmission,
     fuelType,
@@ -139,18 +136,6 @@ const getAllCars = asyncHandler(async (req, res) => {
   } else {
     // No location filter - show all cars
     console.log(`🌍 Showing all cars (no location filter)`);
-  }
-
-  // Filter by availability type
-  if (availableFor && availableFor !== "all") {
-    if (availableFor === "both") {
-      query.availableFor = "both";
-    } else {
-      query.$or = [
-        { availableFor: availableFor },
-        { availableFor: "both" }
-      ];
-    }
   }
 
   // Filter by car type

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
-import { bookingAPI, exchangeAPI } from '@/utils/apiService';
+import { bookingAPI } from '@/utils/apiService';
 import { carImageSrc, handleImageError } from '@/utils/carImage';
 import { statusBadgeVariant } from '@/utils/status';
 import { PageLoader, PageMessage } from '@/components/StateMessage';
@@ -41,12 +41,10 @@ const DetailRow = ({ label, value }) => (
   </div>
 );
 
-const BookingConfirmation = ({ kind = 'rent' }) => {
+const BookingConfirmation = () => {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const isExchange = kind === 'exchange';
-
   // Seed from the record the booking form just created so the page paints instantly,
   // then refetch to pick up the authoritative status.
   const [record, setRecord] = useState(location.state?.record || null);
@@ -58,9 +56,7 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
 
   const fetchRecord = useCallback(async () => {
     try {
-      const response = isExchange
-        ? await exchangeAPI.getExchangeById(id)
-        : await bookingAPI.getBookingById(id);
+      const response = await bookingAPI.getBookingById(id);
 
       if (response.success && response.data) {
         setRecord(response.data);
@@ -74,7 +70,7 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
     } finally {
       setLoading(false);
     }
-  }, [id, isExchange]);
+  }, [id]);
 
   useEffect(() => {
     if (!localStorage.getItem('token')) {
@@ -87,9 +83,7 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
   const handleCancel = async () => {
     setCancelling(true);
     try {
-      const response = isExchange
-        ? await exchangeAPI.cancelExchange(id, cancelReason)
-        : await bookingAPI.cancelBooking(id, cancelReason);
+      const response = await bookingAPI.cancelBooking(id, cancelReason);
 
       if (response.success) {
         setShowCancel(false);
@@ -124,7 +118,7 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
     );
   }
 
-  const car = isExchange ? record.requestedCar : record.car;
+  const car = record.car;
   const status = record.status || 'pending';
   const reference = `DS-${String(record._id || id).slice(-8).toUpperCase()}`;
   const canCancel = !['completed', 'cancelled', 'rejected'].includes(status);
@@ -136,9 +130,9 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
   const headline = () => {
     if (status === 'cancelled') return 'This request was cancelled';
     if (status === 'rejected') return 'The owner declined this request';
-    if (isLive) return isExchange ? 'Exchange confirmed' : 'Booking confirmed';
-    if (status === 'completed') return isExchange ? 'Exchange completed' : 'Trip completed';
-    return isExchange ? 'Exchange request sent' : 'Booking request sent';
+    if (isLive) return 'Booking confirmed';
+    if (status === 'completed') return 'Trip completed';
+    return 'Booking request sent';
   };
 
   const subline = () => {
@@ -154,7 +148,7 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
   const steps = [
     {
       title: 'Request sent',
-      copy: `The owner received your ${isExchange ? 'exchange request' : 'booking request'}.`,
+      copy: 'The owner received your booking request.',
       state: status !== 'pending' ? 'done' : 'active'
     },
     {
@@ -163,8 +157,8 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
       state: isLive || status === 'completed' ? 'done' : status === 'pending' ? 'active' : 'idle'
     },
     {
-      title: isExchange ? 'Swap the cars' : 'Pick up the car',
-      copy: `Meet at ${record.pickupLocation || record.exchangeLocation || car?.location || 'the agreed location'} on ${formatDate(record.startDate)}.`,
+      title: 'Pick up the car',
+      copy: `Meet at ${record.pickupLocation || car?.location || 'the agreed location'} on ${formatDate(record.startDate)}.`,
       state: status === 'completed' ? 'done' : isLive ? 'active' : 'idle'
     }
   ];
@@ -202,7 +196,7 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
         <Card className="[--card-spacing:--spacing(5)]">
           <CardHeader>
             <CardTitle className="text-sm text-muted-foreground">
-              {isExchange ? 'Car you requested' : 'Your car'}
+              Your car
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -226,33 +220,23 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
               </div>
             </div>
 
-            {isExchange && record.offeredCar && (
-              <Item variant="muted">
-                <ItemContent>
-                  <ItemDescription>Car you offered</ItemDescription>
-                  <ItemTitle>
-                    {record.offeredCar.brand} {record.offeredCar.model} ({record.offeredCar.year})
-                  </ItemTitle>
-                </ItemContent>
-              </Item>
-            )}
           </CardContent>
         </Card>
 
         <Card className="[--card-spacing:--spacing(5)]">
           <CardHeader>
             <CardTitle className="text-sm text-muted-foreground">
-              {isExchange ? 'Exchange details' : 'Trip details'}
+              Trip details
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col">
             <DetailRow
-              label={isExchange ? 'Exchange from' : 'Pick up'}
+              label="Pick up"
               value={formatDate(record.startDate)}
             />
             <Separator />
             <DetailRow
-              label={isExchange ? 'Return by' : 'Drop off'}
+              label="Drop off"
               value={formatDate(record.endDate)}
             />
             <Separator />
@@ -263,13 +247,12 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
             <Separator />
             <DetailRow
               label="Location"
-              value={record.pickupLocation || record.exchangeLocation || car?.location || '—'}
+              value={record.pickupLocation || car?.location || '—'}
             />
             <Separator />
             <DetailRow label="Requested on" value={formatDate(record.createdAt)} />
 
-            {!isExchange && (
-              <div className="mt-4 rounded-lg bg-muted/50 p-4">
+            <div className="mt-4 rounded-lg bg-muted/50 p-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">
                     ₹{record.pricePerDay} × {record.totalDays} days
@@ -285,8 +268,7 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
                   Payment status: {record.paymentStatus || 'pending'} — pay the owner directly at
                   pickup.
                 </p>
-              </div>
-            )}
+            </div>
 
             {record.message && (
               <div className="mt-4">
@@ -395,7 +377,7 @@ const BookingConfirmation = ({ kind = 'rent' }) => {
       {showCancel && (
         <Card className="mt-5 [--card-spacing:--spacing(5)]">
           <CardHeader>
-            <CardTitle>Cancel this {isExchange ? 'exchange request' : 'booking'}?</CardTitle>
+            <CardTitle>Cancel this booking?</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <p className="text-sm text-muted-foreground">

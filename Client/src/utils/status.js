@@ -1,4 +1,4 @@
-/** Maps a booking/exchange status onto a Badge variant. */
+/** Maps a booking status onto a Badge variant. */
 export const statusBadgeVariant = (status) => {
   switch (status) {
     case 'confirmed':

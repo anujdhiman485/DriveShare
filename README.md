@@ -1,10 +1,10 @@
-# 🚗 DriveShare - Complete MERN Stack Car Rental & Exchange Platform
+# 🚗 DriveShare - Complete MERN Stack Car Rental Platform
 
 A full-stack web application for renting and exchanging cars with location-based search capabilities.
 
 ## 🎯 Project Overview
 
-DriveShare is a modern car rental and exchange platform built with the MERN stack (MongoDB, Express, React, Node.js). Users can list their cars for rent or exchange, browse available cars nearby using geolocation, book cars, request exchanges, and leave reviews.
+DriveShare is a modern car rental platform built with the MERN stack (MongoDB, Express, React, Node.js). Users can list their cars, browse available cars nearby using geolocation, book cars, and leave reviews.
 
 ## ✨ Key Features
 
@@ -18,7 +18,7 @@ DriveShare is a modern car rental and exchange platform built with the MERN stac
 ### 🚗 Car Management
 - Create, read, update, delete car listings
 - Upload car details with images support (ready)
-- Set availability for rent, exchange, or both
+- Set listing availability
 - Toggle car availability status
 - View own car listings
 - Automatic rating calculations
@@ -38,13 +38,6 @@ DriveShare is a modern car rental and exchange platform built with the MERN stac
 - Status tracking (pending → confirmed → ongoing → completed)
 - View sent and received bookings
 - Cancel bookings with reason
-
-### 🔄 Car Exchange
-- Request car exchanges
-- Offer your car for another user's car
-- Accept/reject exchange requests
-- Track exchange status
-- View exchange history
 
 ### ⭐ Review System
 - Rate cars (1-5 stars)
@@ -108,19 +101,16 @@ DriveShare/
 │   │   │   ├── user.model.js
 │   │   │   ├── car.model.js
 │   │   │   ├── booking.model.js
-│   │   │   ├── exchange.model.js
 │   │   │   └── review.model.js
 │   │   ├── controllers/        # Route controllers
 │   │   │   ├── auth.controller.js
 │   │   │   ├── car.controller.js
 │   │   │   ├── booking.controller.js
-│   │   │   ├── exchange.controller.js
 │   │   │   └── review.controller.js
 │   │   ├── routes/             # API routes
 │   │   │   ├── auth.routes.js
 │   │   │   ├── car.routes.js
 │   │   │   ├── booking.routes.js
-│   │   │   ├── exchange.routes.js
 │   │   │   └── review.routes.js
 │   │   ├── middlewares/        # Custom middleware
 │   │   │   └── auth.middleware.js
@@ -251,13 +241,6 @@ npm run dev
 - See all your booking requests
 - Track booking status
 
-### 7. Exchange Cars
-- Find a car you like
-- Click "Request Exchange"
-- Select your car to offer
-- Choose dates
-- Submit exchange request
-
 ## 🌐 API Endpoints
 
 ### Base URL: `http://localhost:8000/api/v1`
@@ -291,16 +274,6 @@ GET    /bookings/received    # Get received bookings
 GET    /bookings/:id         # Get booking details
 PATCH  /bookings/:id/status  # Update booking status
 PATCH  /bookings/:id/cancel  # Cancel booking
-```
-
-### Exchanges (All Protected)
-```
-POST   /exchanges/create     # Create exchange request
-GET    /exchanges/my-requests # Get user's exchanges
-GET    /exchanges/received   # Get received exchanges
-GET    /exchanges/:id        # Get exchange details
-PATCH  /exchanges/:id/status # Update exchange status
-PATCH  /exchanges/:id/cancel # Cancel exchange
 ```
 
 ### Reviews
@@ -397,7 +370,7 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 - Pricing (pricePerDay)
 - Location (city, area, coordinates)
 - Geospatial index (2dsphere)
-- Availability (isAvailable, availableFor)
+- Availability (isAvailable)
 - Owner reference
 - Rating and booking count
 
@@ -408,13 +381,6 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 - Status (pending/confirmed/ongoing/completed/cancelled)
 - Payment status
 - Locations (pickup, drop)
-
-### Exchange
-- Car references (requested, offered)
-- User references (requester, owner)
-- Date range
-- Status workflow
-- Exchange location
 
 ### Review
 - Car and reviewer references
@@ -430,10 +396,9 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
 2. **My Cars** - User's car listings
 3. **My Bookings** - Booking requests sent
 4. **Received Requests** - Bookings received
-5. **Exchange Requests** - Exchange tracking
 
 ### Car Filters
-- Availability: Rent / Exchange / Both
+- Availability: Available / Unavailable
 - Type: Sedan / SUV / Hatchback / Luxury / Sports / Electric
 - Transmission: Manual / Automatic
 - Fuel: Petrol / Diesel / Electric / Hybrid
@@ -546,7 +511,6 @@ For support, email your-email@example.com or open an issue on GitHub.
 ✅ **Authentication**: JWT-based secure auth
 ✅ **Location Search**: Real-time nearby car discovery
 ✅ **Booking System**: Complete workflow
-✅ **Exchange System**: Car-to-car exchange
 ✅ **Review System**: Ratings and feedback
 
 ### Servers Running:
@@ -557,4 +521,3 @@ For support, email your-email@example.com or open an issue on GitHub.
 ---
 
 **Built with ❤️ using the MERN Stack**
-
