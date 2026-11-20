@@ -3,6 +3,7 @@ import { useState, useEffect, useSyncExternalStore } from 'react';
 import { Menu, X, CarFront, LayoutDashboard, CirclePlus, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import ThemeToggle from './ThemeToggle';
 
@@ -20,6 +21,15 @@ const subscribeToAuth = (onChange) => {
 
 const getAuthSnapshot = () => !!localStorage.getItem('token');
 
+const getUserInitials = (fullName = '') =>
+  fullName
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase() || 'U';
+
 const navLinkClass = ({ isActive }) =>
   cn(
     'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
@@ -29,6 +39,8 @@ const navLinkClass = ({ isActive }) =>
 const Navbar = () => {
   const navigate = useNavigate();
   const isLoggedIn = useSyncExternalStore(subscribeToAuth, getAuthSnapshot);
+  const storedUser = localStorage.getItem('user');
+  const user = storedUser ? JSON.parse(storedUser) : null;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -77,15 +89,17 @@ const Navbar = () => {
           )}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <ThemeToggle />
 
           <div className="hidden items-center gap-2 md:flex">
             {isLoggedIn ? (
-              <Button variant="outline" size="sm" onClick={handleLogout}>
-                <LogOut data-icon="inline-start" />
-                Logout
-              </Button>
+              <>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut data-icon="inline-start" />
+                  Logout
+                </Button>
+              </>
             ) : (
               <>
                 <Button variant="ghost" size="sm" asChild>
@@ -114,6 +128,20 @@ const Navbar = () => {
           >
             {mobileMenuOpen ? <X /> : <Menu />}
           </Button>
+
+          {isLoggedIn && (
+            <NavLink
+              to="/profile"
+              aria-label="Open your profile"
+              title="Profile"
+              className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <Avatar className="size-8 border transition-opacity hover:opacity-80">
+                <AvatarImage src={user?.avatar} alt={user?.fullName || 'Your profile'} />
+                <AvatarFallback>{getUserInitials(user?.fullName)}</AvatarFallback>
+              </Avatar>
+            </NavLink>
+          )}
         </div>
       </div>
 

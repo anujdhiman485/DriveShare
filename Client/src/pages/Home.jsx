@@ -80,10 +80,7 @@ const Home = () => {
       {/* ---------- Hero ---------- */}
       <section className="mx-auto grid w-full max-w-6xl items-center gap-12 px-5 pt-14 pb-16 sm:px-8 sm:pt-20 lg:grid-cols-[1.15fr_0.85fr] lg:gap-16 lg:pb-24">
         <div>
-          <Badge data-hero variant="secondary">
-            <Sparkles />
-            DriveShare Reimagined
-          </Badge>
+        
 
           <h1
             data-hero

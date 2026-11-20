@@ -13,6 +13,7 @@ import BookingPage from '@/pages/BookingPage';
 import BookingConfirmation from '@/pages/BookingConfirmation';
 import Dashboard from '@/pages/Dashboard';
 import AddCar from '@/pages/AddCar';
+import Profile from '@/pages/Profile';
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -41,6 +42,7 @@ const AnimatedRoutes = () => {
         <Route path="/exchange/:id" element={<BookingConfirmation kind="exchange" />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/add-car" element={<AddCar />} />
+        <Route path="/profile" element={<Profile />} />
       </Routes>
     </main>
   );
