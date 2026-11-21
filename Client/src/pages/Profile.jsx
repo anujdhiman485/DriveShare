@@ -9,7 +9,7 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
-import { Check, MapPin, Pencil, Star } from 'lucide-react';
+import { Camera, Check, MapPin, Pencil, Star } from 'lucide-react';
 
 const getInitials = (fullName = '') =>
   fullName
@@ -26,6 +26,8 @@ const Profile = () => {
   const [formData, setFormData] = useState({ fullName: '', phone: '', location: '', city: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState('');
 
   useEffect(() => {
     if (!localStorage.getItem('token')) {
@@ -54,8 +56,27 @@ const Profile = () => {
     loadProfile();
   }, [navigate]);
 
+  useEffect(() => () => {
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+  }, [avatarPreview]);
+
   const handleChange = (event) => {
     setFormData((current) => ({ ...current, [event.target.name]: event.target.value }));
+  };
+
+  const handleAvatarChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Profile picture must be smaller than 5 MB');
+      return;
+    }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
   const handleSubmit = async (event) => {
@@ -63,11 +84,19 @@ const Profile = () => {
     setSaving(true);
 
     try {
-      const response = await authAPI.updateProfile(formData);
+      const profileData = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        profileData.append(key, value);
+      });
+      if (avatarFile) profileData.append('avatar', avatarFile);
+
+      const response = await authAPI.updateProfile(profileData);
       const updatedUser = response.data;
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
       window.dispatchEvent(new Event('authChange'));
+      setAvatarFile(null);
+      setAvatarPreview('');
       toast.success('Profile updated');
     } catch (error) {
       toast.error('Could not update your profile', { description: error.message });
@@ -95,10 +124,28 @@ const Profile = () => {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
         <Card className="h-fit">
           <CardContent className="flex flex-col items-center p-8 text-center">
-            <Avatar className="size-28 border-4 border-muted">
-              <AvatarImage src={user.avatar} alt={user.fullName} />
-              <AvatarFallback className="text-2xl">{getInitials(user.fullName)}</AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="size-28 border-4 border-muted">
+                <AvatarImage src={avatarPreview || user.avatar} alt={user.fullName} />
+                <AvatarFallback className="text-2xl">{getInitials(user.fullName)}</AvatarFallback>
+              </Avatar>
+              <label
+                htmlFor="avatar"
+                className="absolute right-0 bottom-0 flex size-9 cursor-pointer items-center justify-center rounded-full border-2 border-background bg-primary text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+                title="Edit profile picture"
+              >
+                <Camera className="size-4" />
+                <span className="sr-only">Edit profile picture</span>
+              </label>
+              <input
+                id="avatar"
+                name="avatar"
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={handleAvatarChange}
+              />
+            </div>
             <h2 className="font-heading mt-5 text-2xl font-semibold">{user.fullName}</h2>
             <p className="mt-1 text-sm text-muted-foreground">@{user.username}</p>
             {user.isVerified && <Badge className="mt-4"><Check data-icon="inline-start" />Verified profile</Badge>}

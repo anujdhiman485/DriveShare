@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
 import jwt from "jsonwebtoken";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -200,18 +201,36 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 
 const updateUserProfile = asyncHandler(async (req, res) => {
   const { fullName, phone, location, city, coordinates } = req.body;
+  let parsedCoordinates = coordinates;
+  if (typeof coordinates === "string") {
+    try {
+      parsedCoordinates = JSON.parse(coordinates);
+    } catch {
+      parsedCoordinates = undefined;
+    }
+  }
+
+  const updates = {
+    fullName,
+    phone,
+    location,
+    city,
+  };
+  if (parsedCoordinates?.lat !== undefined && parsedCoordinates?.lon !== undefined) {
+    updates.coordinates = parsedCoordinates;
+  }
+
+  if (req.file) {
+    const uploadResult = await uploadOnCloudinary(req.file.path);
+    if (!uploadResult) {
+      throw new ApiError(500, "Profile picture upload failed");
+    }
+    updates.avatar = uploadResult.secure_url || uploadResult.url;
+  }
 
   const user = await User.findByIdAndUpdate(
     req.user?._id,
-    {
-      $set: {
-        fullName,
-        phone,
-        location,
-        city,
-        coordinates,
-      },
-    },
+    { $set: updates },
     { new: true }
   ).select("-password -refreshToken");
 

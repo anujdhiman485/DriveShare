@@ -6,7 +6,12 @@ export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   logout: () => api.post('/auth/logout'),
   getCurrentUser: () => api.get('/auth/current-user'),
-  updateProfile: (userData) => api.patch('/auth/update-profile', userData),
+  updateProfile: (userData) =>
+    api.patch('/auth/update-profile', userData, {
+      headers: userData instanceof FormData
+        ? { 'Content-Type': 'multipart/form-data' }
+        : undefined,
+    }),
   refreshToken: () => api.post('/auth/refresh-token'),
 };
 
