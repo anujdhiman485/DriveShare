@@ -22,7 +22,7 @@ router.route("/").get(getAllCars);
 
 // Parameterized routes - MUST come last to avoid catching specific routes
 router.route("/:id").get(getCarById);
-router.route("/:id/update").patch(verifyJWT, updateCar);
+router.route("/:id/update").patch(verifyJWT, uploadCarImages, updateCar);
 router.route("/:id/delete").delete(verifyJWT, deleteCar);
 router.route("/:id/toggle-availability").patch(verifyJWT, toggleCarAvailability);
 

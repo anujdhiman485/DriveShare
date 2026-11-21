@@ -326,17 +326,79 @@ const updateCar = asyncHandler(async (req, res) => {
     throw new ApiError(403, "You are not authorized to update this car");
   }
 
-  // Update coordinates format if provided
-  if (req.body.coordinates) {
-    req.body.coordinates = {
+  const updates = { ...req.body };
+
+  if (typeof updates.coordinates === "string") {
+    try {
+      const parsed = JSON.parse(updates.coordinates);
+      updates.coordinates = {
+        type: "Point",
+        coordinates: [parseFloat(parsed.lon), parseFloat(parsed.lat)],
+      };
+    } catch {
+      throw new ApiError(400, "Valid coordinates (lat, lon) are required");
+    }
+  } else if (updates.coordinates?.lat !== undefined && updates.coordinates?.lon !== undefined) {
+    updates.coordinates = {
       type: "Point",
-      coordinates: [req.body.coordinates.lon, req.body.coordinates.lat],
+      coordinates: [parseFloat(updates.coordinates.lon), parseFloat(updates.coordinates.lat)],
     };
   }
 
+  if (typeof updates.features === "string") {
+    try {
+      updates.features = JSON.parse(updates.features);
+    } catch {
+      updates.features = [];
+    }
+  }
+
+  ["year", "seats", "pricePerDay"].forEach((field) => {
+    if (updates[field] !== undefined && updates[field] !== "") {
+      updates[field] = parseFloat(updates[field]);
+    } else {
+      delete updates[field];
+    }
+  });
+
+  if (req.files?.length) {
+    const uploadResults = await Promise.all(
+      req.files.map((file) => uploadOnCloudinary(file.path))
+    );
+    const uploadedImages = uploadResults
+      .filter(Boolean)
+      .map((result) => result.secure_url || result.url)
+      .filter(Boolean);
+    let retainedImages = car.images || [];
+    if (typeof updates.existingImages === "string") {
+      try {
+        retainedImages = JSON.parse(updates.existingImages);
+      } catch {
+        retainedImages = car.images || [];
+      }
+    }
+    updates.images = [...retainedImages, ...uploadedImages].slice(0, 6);
+  }
+  if (updates.existingImages !== undefined) {
+    if (!req.files?.length) {
+      try {
+        updates.images = JSON.parse(updates.existingImages).slice(0, 6);
+      } catch {
+        delete updates.images;
+      }
+    }
+    delete updates.existingImages;
+  }
+
+  delete updates.owner;
+  delete updates.rating;
+  delete updates.totalRatings;
+  delete updates.totalBookings;
+  delete updates.isAvailable;
+
   const updatedCar = await Car.findByIdAndUpdate(
     id,
-    { $set: req.body },
+    { $set: updates },
     { new: true, runValidators: true }
   );
 

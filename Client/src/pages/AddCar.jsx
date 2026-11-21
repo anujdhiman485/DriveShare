@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { indianCities, getCityByName, getCurrentLocation, findNearestCities } from '@/utils/locationUtils';
 import { carAPI } from '@/utils/apiService';
 import { AlertCircleIcon, CheckCircle2Icon, ImagePlus, LocateFixed } from 'lucide-react';
@@ -51,10 +51,13 @@ const Section = ({ step, title, description, children }) => (
 
 const AddCar = () => {
   const navigate = useNavigate();
+  const { id: carId } = useParams();
+  const isEditing = Boolean(carId);
   const [formData, setFormData] = useState({
     brand: '',
     model: '',
     year: '',
+    type: 'sedan',
     fuelType: 'petrol',
     transmission: 'manual',
     seating: '',
@@ -72,6 +75,45 @@ const AddCar = () => {
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [detectedCity, setDetectedCity] = useState(null);
   const [imagePreviews, setImagePreviews] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+
+  useEffect(() => {
+    if (!carId) return;
+    const loadCar = async () => {
+      try {
+        setLoading(true);
+        const response = await carAPI.getCarById(carId);
+        if (!response.success) throw new Error(response.message || 'Failed to load car');
+        const car = response.data.car || response.data;
+        const [lon, lat] = car.coordinates?.coordinates || [];
+        setFormData({
+          brand: car.brand || '',
+          model: car.model || '',
+          year: car.year?.toString() || '',
+          type: car.type || 'sedan',
+          fuelType: car.fuelType || 'petrol',
+          transmission: car.transmission || 'manual',
+          seating: car.seats?.toString() || '',
+          pricePerDay: car.pricePerDay?.toString() || '',
+          location: car.location || '',
+          area: car.area || '',
+          coordinates: {
+            lat: typeof lat === 'number' ? lat : null,
+            lon: typeof lon === 'number' ? lon : null
+          },
+          description: car.description || '',
+          features: car.features || [],
+          images: []
+        });
+        setExistingImages(car.images || []);
+      } catch (err) {
+        setError(err.message || 'Failed to load car');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadCar();
+  }, [carId]);
 
   useEffect(() => () => {
     imagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
@@ -200,7 +242,7 @@ const AddCar = () => {
         brand: formData.brand.trim(),
         model: formData.model.trim(),
         year: parseInt(formData.year),
-        type: 'sedan', // You can add a type selector if needed
+        type: formData.type,
         transmission: formData.transmission,
         fuelType: formData.fuelType,
         seats: parseInt(formData.seating),
@@ -215,14 +257,22 @@ const AddCar = () => {
         carData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
       });
       formData.images.forEach((file) => carData.append('images', file));
+      carData.append('existingImages', JSON.stringify(existingImages));
 
-      const response = await carAPI.createCar(carData);
+      const response = isEditing
+        ? await carAPI.updateCar(carId, carData)
+        : await carAPI.createCar(carData);
 
       if (response.success) {
-        // Navigate to dashboard with state to show My Cars tab
-        navigate('/dashboard', { state: { showTab: 'myCars', newCarAdded: true } });
+        navigate('/dashboard', {
+          state: {
+            showTab: 'myCars',
+            carUpdated: isEditing,
+            newCarAdded: !isEditing
+          }
+        });
       } else {
-        setError(response.message || 'Failed to add car');
+        setError(response.message || `Failed to ${isEditing ? 'update' : 'add'} car`);
       }
     } catch (err) {
       console.error('Error adding car:', err);
@@ -235,9 +285,9 @@ const AddCar = () => {
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8 sm:py-14">
       <header>
-        <p className="text-sm text-muted-foreground">Become a host</p>
+        <p className="text-sm text-muted-foreground">{isEditing ? 'Manage listing' : 'Become a host'}</p>
         <h1 className="font-heading mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
-          List your car
+          {isEditing ? 'Edit your car' : 'List your car'}
         </h1>
         <p className="mt-2 text-muted-foreground">
           Share your car and earn money with a straightforward rental listing.
@@ -255,7 +305,7 @@ const AddCar = () => {
         {/* ---------- Basics ---------- */}
         <Section step="1" title="Basic information" description="Tell us what you're listing.">
           <FieldGroup>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Field>
                 <FieldLabel htmlFor="brand">Brand *</FieldLabel>
                 <Input id="brand" name="brand" value={formData.brand} onChange={handleChange}
@@ -273,6 +323,24 @@ const AddCar = () => {
                 <Input type="number" id="year" name="year" value={formData.year}
                   onChange={handleChange} required min="2000"
                   max={new Date().getFullYear() + 1} placeholder="2023" />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="type">Car type *</FieldLabel>
+                <Select value={formData.type} onValueChange={handleSelect('type')}>
+                  <SelectTrigger id="type" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="sedan">Sedan</SelectItem>
+                      <SelectItem value="suv">SUV</SelectItem>
+                      <SelectItem value="hatchback">Hatchback</SelectItem>
+                      <SelectItem value="luxury">Luxury</SelectItem>
+                      <SelectItem value="sports">Sports</SelectItem>
+                      <SelectItem value="electric">Electric</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </Field>
             </div>
 
@@ -434,6 +502,28 @@ const AddCar = () => {
 
         {/* ---------- Images ---------- */}
         <Section step="5" title="Images" description="Listings with photos get far more requests.">
+          {existingImages.length > 0 && (
+            <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
+              {existingImages.map((image, index) => (
+                <div key={image} className="relative">
+                  <img
+                    src={image}
+                    alt={`Existing car image ${index + 1}`}
+                    className="aspect-square w-full rounded-lg object-cover ring-1 ring-foreground/10"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute right-1 bottom-1 h-7 px-2"
+                    onClick={() => setExistingImages((current) => current.filter((url) => url !== image))}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
           <FieldLabel
             htmlFor="images"
             className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-10 text-center transition-colors hover:bg-muted"
@@ -472,7 +562,9 @@ const AddCar = () => {
 
         <Button type="submit" size="lg" className="w-full" disabled={loading}>
           {loading && <Spinner data-icon="inline-start" />}
-          {loading ? 'Adding car…' : 'List my car'}
+          {loading
+            ? (isEditing ? 'Saving changes…' : 'Adding car…')
+            : (isEditing ? 'Save car changes' : 'List my car')}
         </Button>
       </form>
     </div>

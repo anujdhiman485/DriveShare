@@ -20,7 +20,12 @@ export const carAPI = {
         ? { 'Content-Type': 'multipart/form-data' }
         : undefined,
     }),
-  updateCar: (id, carData) => api.patch(`/cars/${id}/update`, carData),
+  updateCar: (id, carData) =>
+    api.patch(`/cars/${id}/update`, carData, {
+      headers: carData instanceof FormData
+        ? { 'Content-Type': 'multipart/form-data' }
+        : undefined,
+    }),
   deleteCar: (id) => api.delete(`/cars/${id}/delete`),
   getMyCars: () => api.get('/cars/my-cars'),
   toggleAvailability: (id) => api.patch(`/cars/${id}/toggle-availability`),

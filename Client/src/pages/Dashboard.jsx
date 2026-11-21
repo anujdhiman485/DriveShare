@@ -84,6 +84,9 @@ const Dashboard = () => {
           description: 'You can see it below in My Cars.'
         });
       }
+      if (location.state.carUpdated) {
+        toast.success('Car updated successfully');
+      }
       // Clear state to prevent affecting future navigations
       window.history.replaceState({}, document.title);
     }
@@ -123,6 +126,25 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error rejecting booking:', error);
       toast.error('Failed to reject booking', { description: error.message });
+    }
+  };
+
+  const handleEditCar = (carId) => {
+    navigate(`/edit-car/${carId}`);
+  };
+
+  const handleDeleteCar = async (car) => {
+    const label = `${car.brand} ${car.model}`;
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+
+    try {
+      const response = await carAPI.deleteCar(car._id);
+      if (!response.success) throw new Error(response.message || 'Failed to delete car');
+      setMyCars((current) => current.filter((item) => item._id !== car._id));
+      toast.success('Car deleted', { description: `${label} was removed.` });
+    } catch (error) {
+      console.error('Error deleting car:', error);
+      toast.error('Failed to delete car', { description: error.message });
     }
   };
 
@@ -268,8 +290,16 @@ const Dashboard = () => {
                   </ItemContent>
 
                   <ItemActions>
-                    <Button variant="outline" size="sm">Edit</Button>
-                    <Button variant="destructive" size="sm">Delete</Button>
+                    <Button variant="outline" size="sm" onClick={() => handleEditCar(car._id)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteCar(car)}
+                    >
+                      Delete
+                    </Button>
                   </ItemActions>
                 </Item>
               ))
