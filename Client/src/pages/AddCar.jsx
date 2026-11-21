@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { indianCities, getCityByName, getCurrentLocation, findNearestCities } from '@/utils/locationUtils';
 import { carAPI } from '@/utils/apiService';
@@ -71,6 +71,11 @@ const AddCar = () => {
   const [error, setError] = useState('');
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [detectedCity, setDetectedCity] = useState(null);
+  const [imagePreviews, setImagePreviews] = useState([]);
+
+  useEffect(() => () => {
+    imagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
+  }, [imagePreviews]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -136,7 +141,15 @@ const AddCar = () => {
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
-    // TODO: Handle image upload to server/cloud storage
+    const selectedFiles = files.slice(0, 6);
+    imagePreviews.forEach((preview) => URL.revokeObjectURL(preview));
+    setImagePreviews(selectedFiles.map((file) => URL.createObjectURL(file)));
+    if (files.length > 6) {
+      setError('You can upload up to 6 images');
+      setFormData((current) => ({ ...current, images: selectedFiles }));
+      return;
+    }
+    setError('');
     setFormData((current) => ({ ...current, images: files }));
   };
 
@@ -182,7 +195,8 @@ const AddCar = () => {
 
     try {
       // Prepare car data for API
-      const carData = {
+      const carData = new FormData();
+      const fields = {
         brand: formData.brand.trim(),
         model: formData.model.trim(),
         year: parseInt(formData.year),
@@ -197,6 +211,10 @@ const AddCar = () => {
         area: formData.area.trim(),
         coordinates: formData.coordinates,
       };
+      Object.entries(fields).forEach(([key, value]) => {
+        carData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+      });
+      formData.images.forEach((file) => carData.append('images', file));
 
       const response = await carAPI.createCar(carData);
 
@@ -434,9 +452,21 @@ const AddCar = () => {
           </FieldLabel>
 
           {formData.images.length > 0 && (
-            <p className="mt-3 text-sm text-muted-foreground">
-              {formData.images.length} image{formData.images.length === 1 ? '' : 's'} selected
-            </p>
+            <>
+              <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                {imagePreviews.map((preview, index) => (
+                  <img
+                    key={preview}
+                    src={preview}
+                    alt={`Car preview ${index + 1}`}
+                    className="aspect-square w-full rounded-lg object-cover ring-1 ring-foreground/10"
+                  />
+                ))}
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {formData.images.length} image{formData.images.length === 1 ? '' : 's'} selected
+              </p>
+            </>
           )}
         </Section>
 

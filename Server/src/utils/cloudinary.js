@@ -2,20 +2,12 @@ import { v2 as cloudinary } from 'cloudinary'
 import fs from 'fs'
 import path from 'path'
 
-
-// import dotenv from 'dotenv'
-// dotenv.config()
-
-const CLOUDINARY_CLOUD_NAME = "dpbcws6eu"
-const CLOUDINARY_API_KEY = "997285735788579"
-const CLOUDINARY_API_SECRET = "isBJRtFsI-me4piPepXBi6iiI-0"
-
 // Configure Cloudinary
 const configureCloudinary = () => {
     const config = {
-        cloud_name: CLOUDINARY_CLOUD_NAME,
-        api_key: CLOUDINARY_API_KEY,
-        api_secret: CLOUDINARY_API_SECRET,
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
         secure: true
     };
 

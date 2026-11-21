@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Car } from "../models/car.model.js";
 import { Review } from "../models/review.model.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 
 // Create a new car listing
 const createCar = asyncHandler(async (req, res) => {
@@ -26,6 +27,22 @@ const createCar = asyncHandler(async (req, res) => {
     coordinates,
     registrationNumber,
   } = req.body;
+  let parsedCoordinates = coordinates;
+  let parsedFeatures = features;
+  if (typeof coordinates === "string") {
+    try {
+      parsedCoordinates = JSON.parse(coordinates);
+    } catch {
+      parsedCoordinates = null;
+    }
+  }
+  if (typeof features === "string") {
+    try {
+      parsedFeatures = JSON.parse(features);
+    } catch {
+      parsedFeatures = [];
+    }
+  }
 
   // Validation
   if (
@@ -38,17 +55,17 @@ const createCar = asyncHandler(async (req, res) => {
     !seats ||
     !pricePerDay ||
     !location ||
-    !coordinates
+    !parsedCoordinates
   ) {
     throw new ApiError(400, "All required fields must be provided");
   }
 
   // Validate coordinates format
   if (
-    !coordinates.lat ||
-    !coordinates.lon ||
-    typeof coordinates.lat !== "number" ||
-    typeof coordinates.lon !== "number"
+    !parsedCoordinates.lat ||
+    !parsedCoordinates.lon ||
+    typeof parsedCoordinates.lat !== "number" ||
+    typeof parsedCoordinates.lon !== "number"
   ) {
     throw new ApiError(
       400,
@@ -56,10 +73,20 @@ const createCar = asyncHandler(async (req, res) => {
     );
   }
 
-  // Add default placeholder image if no images provided
-  const carImages = req.body.images && req.body.images.length > 0 
-    ? req.body.images 
-    : [`https://via.placeholder.com/800x600/667eea/ffffff?text=${encodeURIComponent(brand + ' ' + model)}`];
+  let carImages = [];
+  if (req.files?.length) {
+    const uploadResults = await Promise.all(
+      req.files.map((file) => uploadOnCloudinary(file.path))
+    );
+    carImages = uploadResults
+      .filter(Boolean)
+      .map((result) => result.secure_url || result.url)
+      .filter(Boolean);
+  }
+
+  if (!carImages.length) {
+    carImages = [`https://via.placeholder.com/800x600/667eea/ffffff?text=${encodeURIComponent(brand + ' ' + model)}`];
+  }
 
   const car = await Car.create({
     owner: req.user._id,
@@ -72,13 +99,13 @@ const createCar = asyncHandler(async (req, res) => {
     seats,
     pricePerDay,
     description: description || "",
-    features: features || [],
+    features: parsedFeatures || [],
     location,
     area: area || "",
     images: carImages,
     coordinates: {
       type: "Point",
-      coordinates: [coordinates.lon, coordinates.lat], // [longitude, latitude]
+      coordinates: [parsedCoordinates.lon, parsedCoordinates.lat], // [longitude, latitude]
     },
     registrationNumber: registrationNumber || "",
   });

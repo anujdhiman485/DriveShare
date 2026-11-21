@@ -14,7 +14,12 @@ export const authAPI = {
 export const carAPI = {
   getAllCars: (params) => api.get('/cars', { params }),
   getCarById: (id) => api.get(`/cars/${id}`),
-  createCar: (carData) => api.post('/cars/create', carData),
+  createCar: (carData) =>
+    api.post('/cars/create', carData, {
+      headers: carData instanceof FormData
+        ? { 'Content-Type': 'multipart/form-data' }
+        : undefined,
+    }),
   updateCar: (id, carData) => api.patch(`/cars/${id}/update`, carData),
   deleteCar: (id) => api.delete(`/cars/${id}/delete`),
   getMyCars: () => api.get('/cars/my-cars'),

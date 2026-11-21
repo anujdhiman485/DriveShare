@@ -9,11 +9,12 @@ import {
   toggleCarAvailability,
 } from "../controllers/car.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { uploadCarImages } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 
 // Protected routes - MUST come before parameterized routes
-router.route("/create").post(verifyJWT, createCar);
+router.route("/create").post(verifyJWT, uploadCarImages, createCar);
 router.route("/my-cars").get(verifyJWT, getCarsByOwner);
 
 // Public routes
